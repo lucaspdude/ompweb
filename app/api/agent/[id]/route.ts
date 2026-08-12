@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSessionHeader, resolveSessionPath } from "@/lib/session-reader";
 import { startRpcSession, getRpcSession, resolveSpawnCwd, WebRpcError } from "@/lib/rpc-manager";
+import { languageDirectiveFromRequest } from "@/lib/language-directive";
 import { RpcCommandError } from "@/lib/omp/rpc-process";
 
 /** omp-web's own failures carry a stable code the client can localize; omp's
@@ -45,7 +46,7 @@ export async function POST(
 
     const cwd = resolveSpawnCwd(readSessionHeader(filePath)?.cwd);
 
-    const { session } = await startRpcSession(id, filePath, cwd);
+    const { session } = await startRpcSession(id, filePath, cwd, undefined, false, languageDirectiveFromRequest(req));
     const result = await session.send(body);
 
     return NextResponse.json({ success: true, data: result });

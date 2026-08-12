@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { allowFileRoot } from "@/lib/file-access";
 import { invalidateSessionListCache } from "@/lib/session-reader";
 import { WebRpcError, startRpcSession } from "@/lib/rpc-manager";
+import { languageDirectiveFromRequest } from "@/lib/language-directive";
 import { RpcCommandError } from "@/lib/omp/rpc-process";
 
 function newSessionErrorResponse(error: unknown) {
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     // that share a key onto one session. Date.now() (ms resolution) collides for
     // requests in the same millisecond, merging two new sessions into one.
     const tempKey = `__new__${randomUUID()}`;
-    const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames, advisor === true);
+    const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames, advisor === true, languageDirectiveFromRequest(req));
 
     // Keep the files-route allowed-roots cache (see app/api/files/[...path]/route.ts)
     // in sync so the new cwd is immediately readable via /api/files. Without this,

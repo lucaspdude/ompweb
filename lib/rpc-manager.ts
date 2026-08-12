@@ -117,7 +117,7 @@ export function mapPresetToolNames(toolNames: string[]): string[] {
 const FULL_PRESET_KEY = [...PRESET_FULL].map((n) => n.toLowerCase()).sort().join(",");
 
 /** Extra CLI args for spawning `omp --mode rpc-ui` for a session. */
-export function buildSessionSpawnArgs(sessionFile: string, toolNames?: string[], advisor = false): string[] {
+export function buildSessionSpawnArgs(sessionFile: string, toolNames?: string[], advisor = false, languageDirective?: string): string[] {
   const args: string[] = [];
   if (sessionFile) {
     // An absolute path (or anything containing "/") resolves deterministically:
@@ -137,6 +137,10 @@ export function buildSessionSpawnArgs(sessionFile: string, toolNames?: string[],
     }
   }
   if (advisor && !sessionFile) args.push("--advisor");
+  // Language directive from the user's UI locale (lib/language-directive.ts).
+  // Applies on resume too: the model should keep answering in the selected
+  // language when an old session is reopened.
+  if (languageDirective) args.push("--append-system-prompt", languageDirective);
   return args;
 }
 
@@ -203,12 +207,14 @@ export class AgentSessionWrapper {
   private _sessionName: string | undefined;
   private proc: RpcProcess;
   readonly cwd: string;
+  private languageDirective: string | undefined;
 
   // Plain field assignments (not TS parameter properties) keep this module
   // runnable under Node's strip-only TypeScript mode for probes/tests.
-  constructor(proc: RpcProcess, cwd: string) {
+  constructor(proc: RpcProcess, cwd: string, languageDirective?: string) {
     this.proc = proc;
     this.cwd = cwd;
+    this.languageDirective = languageDirective;
   }
 
   get sessionId(): string {
@@ -616,7 +622,7 @@ export class AgentSessionWrapper {
 
       const proc = new RpcProcess({
         cwd: this.cwd,
-        extraArgs: buildSessionSpawnArgs(resumable ? sessionFile : ""),
+        extraArgs: buildSessionSpawnArgs(resumable ? sessionFile : "", undefined, false, this.languageDirective),
         onExit: ({ stderrTail }) => {
           if (this.proc === proc) this.handleProcessExit(stderrTail);
         },
@@ -978,6 +984,8 @@ export function notifyRunningChange({ refreshSessionList = false }: { refreshSes
  * For new sessions (sessionFile === ""), omp generates its own id.
  * Pass toolNames to pre-configure the builtin toolset of a NEW session
  * (empty array = all tools disabled); ignored when resuming.
+ * languageDirective (lib/language-directive.ts) is appended to omp's system
+ * prompt so the model answers in the user's selected UI language.
  */
 export async function startRpcSession(
   sessionId: string,
@@ -985,6 +993,7 @@ export async function startRpcSession(
   cwd: string,
   toolNames?: string[],
   advisor = false,
+  languageDirective?: string,
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
   const registry = getRegistry();
   const locks = getLocks();
@@ -1001,10 +1010,10 @@ export async function startRpcSession(
     const holder: { wrapper?: AgentSessionWrapper } = {};
     const proc = new RpcProcess({
       cwd,
-      extraArgs: buildSessionSpawnArgs(sessionFile, toolNames, advisor),
+      extraArgs: buildSessionSpawnArgs(sessionFile, toolNames, advisor, languageDirective),
       onExit: ({ stderrTail }) => holder.wrapper?.handleProcessExit(stderrTail),
     });
-    const created = new AgentSessionWrapper(proc, cwd);
+    const created = new AgentSessionWrapper(proc, cwd, languageDirective);
     holder.wrapper = created;
     created.start();
     try {
