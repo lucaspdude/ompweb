@@ -3,6 +3,7 @@ import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-acces
 import { deleteMcpServer, parseMcpListOutput, readDiscoveredMcpServers, readMcpConfig, readUserMcpConfig, type McpLiveServer, validateMcpServer, writeMcpServer } from "@/lib/omp/mcp-config";
 import { readSessionHeader, resolveSessionPath } from "@/lib/session-reader";
 import { getRpcSession, resolveSpawnCwd, startRpcSession } from "@/lib/rpc-manager";
+import { languageDirectiveFromRequest } from "@/lib/language-directive";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
         if (!session?.isAlive()) {
           const sessionFile = await resolveSessionPath(sessionId);
           if (!sessionFile) throw new Error("Session not found");
-          ({ session } = await startRpcSession(sessionId, sessionFile, resolveSpawnCwd(readSessionHeader(sessionFile)?.cwd)));
+          ({ session } = await startRpcSession(sessionId, sessionFile, resolveSpawnCwd(readSessionHeader(sessionFile)?.cwd), undefined, false, languageDirectiveFromRequest(request)));
         }
         liveServers = mergeMcpServers(parseMcpListOutput(await session.getMcpList()), inventory);
       } catch (error) {

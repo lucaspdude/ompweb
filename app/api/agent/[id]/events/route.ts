@@ -1,5 +1,6 @@
 import { readSessionHeader, resolveSessionPath } from "@/lib/session-reader";
 import { getRpcSession, resolveSpawnCwd, startRpcSession } from "@/lib/rpc-manager";
+import { languageDirectiveFromRequest } from "@/lib/language-directive";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ export async function GET(
         if (!session) {
           try {
             const cwd = resolveSpawnCwd(readSessionHeader(filePath)?.cwd);
-            ({ session } = await startRpcSession(id, filePath, cwd));
+            ({ session } = await startRpcSession(id, filePath, cwd, undefined, false, languageDirectiveFromRequest(req)));
           } catch (error) {
             encode({ type: "notice", level: "error", message: `Failed to start agent: ${error}` });
             cleanup();

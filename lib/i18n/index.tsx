@@ -1,16 +1,19 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { persistLanguageCookie } from "@/lib/language-directive";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
+import ptBR from "./locales/pt-BR.json";
 import zhCN from "./locales/zh-CN.json";
 
-export type Locale = "en" | "zh-CN" | "ja";
+export type Locale = "en" | "zh-CN" | "ja" | "pt-BR";
 
 export const LOCALES: Array<{ value: Locale; label: string }> = [
   { value: "en", label: "EN" },
   { value: "zh-CN", label: "中文" },
   { value: "ja", label: "日本語" },
+  { value: "pt-BR", label: "Português" },
 ];
 
 const STORAGE_KEY = "omp-lang";
@@ -19,6 +22,7 @@ const dictionaries: Record<Locale, Record<string, string>> = {
   en: en as Record<string, string>,
   "zh-CN": zhCN as Record<string, string>,
   ja: ja as Record<string, string>,
+  "pt-BR": ptBR as Record<string, string>,
 };
 
 // Held on globalThis so a Fast Refresh module swap cannot split subscribers
@@ -39,7 +43,7 @@ const listeners = state.listeners;
 function detectLocale(): Locale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "en" || stored === "zh-CN" || stored === "ja") return stored;
+    if (stored === "en" || stored === "zh-CN" || stored === "ja" || stored === "pt-BR") return stored;
   } catch {
     // storage unavailable (private mode etc.)
   }
@@ -47,6 +51,7 @@ function detectLocale(): Locale {
     const lang = navigator.language.toLowerCase();
     if (lang.startsWith("zh")) return "zh-CN";
     if (lang.startsWith("ja")) return "ja";
+    if (lang.startsWith("pt")) return "pt-BR";
   }
   return "en";
 }
@@ -64,6 +69,9 @@ export function setLocale(locale: Locale): void {
   } catch {
     // ignore storage errors
   }
+  // Mirror to a cookie so API routes can pass the language to spawned omp
+  // sessions (see lib/language-directive.ts).
+  persistLanguageCookie(locale);
   if (typeof document !== "undefined") {
     document.documentElement.lang = locale;
   }
