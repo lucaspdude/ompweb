@@ -684,8 +684,8 @@ export function AppShell() {
       <div style={{ padding: "8px", flexShrink: 0, display: "flex", justifyContent: "space-between", gap: 4 }}>
         <button
             onClick={() => setSettingsTab("general")}
-            title="Settings"
-            aria-label="Settings"
+            title={t("settings.title")}
+            aria-label={t("settings.title")}
             style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               height: 32, padding: 0, background: "none", border: "none",
@@ -697,7 +697,7 @@ export function AppShell() {
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
           >
             <span style={{ position: "relative", display: "inline-flex" }}><Settings2 size={14} aria-hidden="true" />{(appUpdateAvailable || ompUpdateAvailable) && <span aria-label="Update available" role="status" style={{ position: "absolute", top: -3, right: -4, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", border: "1px solid var(--bg-panel)" }} />}</span>
-            Settings
+            {t("settings.title")}
           </button>
       </div>
     </>
