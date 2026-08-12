@@ -1,22 +1,23 @@
-"use client";
-
-import { Box, Bot, Cable, Puzzle, Settings2 } from "lucide-react";
-
-export type SettingsTab = "general" | "models" | "skills" | "plugins" | "mcp";
-
-const TABS: Array<{ id: SettingsTab; label: string; Icon: typeof Settings2; needsWorkspace?: boolean }> = [
-  { id: "general", label: "General", Icon: Settings2 },
-  { id: "models", label: "Models", Icon: Box },
-  { id: "mcp", label: "MCP", Icon: Cable },
-  { id: "skills", label: "Skills", Icon: Bot, needsWorkspace: true },
-  { id: "plugins", label: "Plugins", Icon: Puzzle, needsWorkspace: true },
+ "use client";
+ 
+ import { Box, Bot, Cable, Puzzle, Settings2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+ 
+ export type SettingsTab = "general" | "models" | "skills" | "plugins" | "mcp";
+ 
+const TABS: Array<{ id: SettingsTab; Icon: typeof Settings2; needsWorkspace?: boolean }> = [
+  { id: "general", Icon: Settings2 },
+  { id: "models", Icon: Box },
+  { id: "mcp", Icon: Cable },
+  { id: "skills", Icon: Bot, needsWorkspace: true },
+  { id: "plugins", Icon: Puzzle, needsWorkspace: true },
 ];
-
 export function SettingsTabs({ active, onSelect, workspaceReady = true }: {
   active: SettingsTab;
   onSelect: (tab: SettingsTab) => void;
   workspaceReady?: boolean;
 }) {
+  const { t } = useI18n();
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
     const enabled = TABS.filter((tab) => !(tab.needsWorkspace && !workspaceReady));
     let nextIndex: number | null = null;
@@ -31,8 +32,9 @@ export function SettingsTabs({ active, onSelect, workspaceReady = true }: {
     }
   };
   return (
-    <nav aria-label="Settings sections" role="tablist" style={{ display: "flex", gap: 3, padding: "7px 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-panel)", flexShrink: 0, overflowX: "auto" }}>
-      {TABS.map(({ id, label, Icon, needsWorkspace }, index) => {
+    <nav aria-label={t("settings.title")} role="tablist" style={{ display: "flex", gap: 3, padding: "7px 12px", borderBottom: "1px solid var(--border)", background: "var(--bg-panel)", flexShrink: 0, overflowX: "auto" }}>
+      {TABS.map(({ id, Icon, needsWorkspace }, index) => {
+        const label = t(`settings.tabs.${id}`);
         const selected = id === active;
         const disabled = Boolean(needsWorkspace && !workspaceReady);
         return (
