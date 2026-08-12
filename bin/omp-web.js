@@ -40,7 +40,7 @@ try {
 
 const { port, hostname, openBrowser } = parseLaunchOptions();
 const loopbackHostnames = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
-const passwordEnabled = Boolean(process.env.OMP_WEB_PASSWORD);
+const passwordEnabled = Boolean(process.env.ROCINANTE_PASSWORD);
 
 if (!fs.existsSync(nextDir)) {
   console.error("Build artifacts not found. Please report this issue.");
@@ -75,10 +75,10 @@ async function main() {
     stdio: ["inherit", "pipe", "inherit"],
     env: {
       ...process.env,
-      OMP_WEB_PACKAGE_DIR: pkgDir,
-      OMP_WEB_LAUNCHER_PID: String(process.pid),
-      OMP_WEB_PORT: port,
-      OMP_WEB_HOSTNAME: hostname,
+      ROCINANTE_PACKAGE_DIR: pkgDir,
+      ROCINANTE_LAUNCHER_PID: String(process.pid),
+      ROCINANTE_PORT: port,
+      ROCINANTE_HOSTNAME: hostname,
     },
   });
 

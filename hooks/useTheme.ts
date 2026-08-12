@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 export type ThemePreference = "light" | "dark" | "system";
 type Theme = "light" | "dark";
 
-const STORAGE_KEY = "omp-theme";
+const STORAGE_KEY = "rocinante:theme";
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void): () => void {

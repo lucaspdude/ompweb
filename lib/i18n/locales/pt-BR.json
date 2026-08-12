@@ -293,7 +293,7 @@
   "errors.not_a_file": "O caminho não é um arquivo",
   "errors.not_a_skill_file": "O caminho não é um arquivo SKILL.md",
   "errors.not_a_worktree": "Não é um worktree deste repositório",
-  "errors.omp_not_found": "Binário do Rocinante não encontrado. Instale o oh-my-pi ou defina OMP_WEB_OMP_BIN.",
+  "errors.omp_not_found": "Binário do Rocinante não encontrado. Instale o oh-my-pi ou defina ROCINANTE_OMP_BIN.",
   "errors.package_required": "Um pacote é obrigatório",
   "errors.package_scope_together": "pacote e escopo devem ser informados juntos",
   "errors.path_must_be_absolute": "O caminho deve ser absoluto",

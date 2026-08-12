@@ -58,7 +58,7 @@ interface WorktreeState {
   worktrees: WorktreeEntry[];
 }
 
-const UNREAD_SESSIONS_STORAGE_KEY = "omp-web:unread-session-ids";
+const UNREAD_SESSIONS_STORAGE_KEY = "rocinante:unread-session-ids";
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -83,7 +83,7 @@ function saveUnreadSessionIds(ids: Set<string>): void {
   }
 }
 
-const EXPANDED_PROJECTS_STORAGE_KEY = "omp-web:expanded-projects";
+const EXPANDED_PROJECTS_STORAGE_KEY = "rocinante:expanded-projects";
 
 /** Shared empty set for the no-stored-expansion default (never mutated). */
 const EMPTY_PROJECT_SET: ReadonlySet<string> = new Set();
@@ -318,7 +318,7 @@ function RocinanteTitle() {
   const scrambleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = usePrefersReducedMotion();
 
-  const target = showVersion ? `v${process.env.NEXT_PUBLIC_OMP_WEB_VERSION ?? "0.0.0"}` : t("brand.appName");
+  const target = showVersion ? `v${process.env.NEXT_PUBLIC_ROCINANTE_VERSION ?? "0.0.0"}` : t("brand.appName");
   const display = useScramble(target, scrambling, reducedMotion);
 
   const triggerScramble = useCallback((toVersion: boolean) => {

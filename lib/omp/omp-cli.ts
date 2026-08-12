@@ -29,7 +29,7 @@ export function invalidateOmpCliCache(): void {
 }
 
 function probeOmpBin(): string | null {
-  const override = process.env.OMP_WEB_OMP_BIN;
+  const override = process.env.ROCINANTE_OMP_BIN;
   if (override) return existsSync(override) ? override : null;
   for (const dir of (process.env.PATH ?? "").split(delimiter)) {
     if (!dir) continue;
@@ -51,7 +51,7 @@ function probeOmpBin(): string | null {
   return null;
 }
 
-/** Resolve the omp binary: OMP_WEB_OMP_BIN override, then PATH lookup. Returns
+/** Resolve the omp binary: ROCINANTE_OMP_BIN override, then PATH lookup. Returns
  * null when omp is not installed. A hit is cached for the process lifetime; a
  * miss is re-probed after MISS_TTL_MS. */
 export function resolveOmpBin(): string | null {

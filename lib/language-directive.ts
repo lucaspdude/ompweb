@@ -4,8 +4,8 @@
 // prompt via --append-system-prompt. Pure module: no Node or React imports, so
 // both bundles can include it.
 
-/** Cookie mirroring the i18n localStorage key ("omp-lang") for the server. */
-export const LANGUAGE_COOKIE = "omp-lang";
+/** Cookie mirroring the i18n localStorage key ("rocinante:lang") for the server. */
+export const LANGUAGE_COOKIE = "rocinante:lang";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 

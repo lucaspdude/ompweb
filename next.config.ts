@@ -72,7 +72,7 @@ const nextConfig = (phase: string): NextConfig => {
     },
     env: {
       NEXT_PUBLIC_APP_VERSION: version,
-      NEXT_PUBLIC_OMP_WEB_VERSION: version,
+      NEXT_PUBLIC_ROCINANTE_VERSION: version,
     },
   };
 };

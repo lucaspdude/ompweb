@@ -35,7 +35,7 @@ const FileViewer = dynamic(() => import("./FileViewer").then((m) => m.FileViewer
 
 // Resizable desktop sidebar: the width is stored on the container as the
 // --sidebar-width CSS variable (globals.css) and persisted between sessions.
-const SIDEBAR_WIDTH_STORAGE_KEY = "omp-web:sidebar-width";
+const SIDEBAR_WIDTH_STORAGE_KEY = "rocinante:sidebar-width";
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 520;
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -176,11 +176,11 @@ export function AppShell() {
     setMobileSidebarReady(true);
   }, [t]);
   useEffect(() => {
-    setAdvisorEnabled(localStorage.getItem("omp-advisor-enabled") === "true");
+    setAdvisorEnabled(localStorage.getItem("rocinante:advisor-enabled") === "true");
   }, [t]);
   const handleAdvisorChange = useCallback((enabled: boolean) => {
     setAdvisorEnabled(enabled);
-    localStorage.setItem("omp-advisor-enabled", String(enabled));
+    localStorage.setItem("rocinante:advisor-enabled", String(enabled));
   }, [t]);
   useEffect(() => {
     const controller = new AbortController();
