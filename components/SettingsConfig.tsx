@@ -75,8 +75,6 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
   const [update, setUpdate] = useState<UpdateState | null>(null);
   const [checking, setChecking] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [appUpdate, setAppUpdate] = useState<UpdateState | null>(null);
-  const [checkingAppUpdate, setCheckingAppUpdate] = useState(true);
 
   const [restarting, setRestarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -129,22 +127,6 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
   }, [onOmpUpdateAvailabilityChange]);
 
   useEffect(() => { void checkForUpdate(); }, [checkForUpdate]);
-
-  const checkForAppUpdate = useCallback(async (force = false) => {
-    setCheckingAppUpdate(true);
-    try {
-      const response = await fetch(force ? "/api/update?force=1" : "/api/update");
-      const data = await response.json() as UpdateState & { error?: string };
-      if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
-      setAppUpdate(data);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setCheckingAppUpdate(false);
-    }
-  }, []);
-
-  useEffect(() => { void checkForAppUpdate(); }, [checkForAppUpdate]);
 
   const installUpdate = useCallback(async () => {
     setUpdating(true);
@@ -278,18 +260,6 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
               </div>
             </section>
             {nativeSettingsError && <p role="alert" style={{ margin: 0, color: "var(--status-error)", fontSize: 12 }}>{nativeSettingsError}</p>}
-          <section style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{t("settings.appUpdate.title")}</div>
-                <div style={{ marginTop: 4, color: appUpdate?.updateAvailable ? "var(--accent)" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                  {checkingAppUpdate ? t("settings.appUpdate.checking") : appUpdate?.updateAvailable ? t("settings.appUpdate.updateAvailable", { current: appUpdate.currentVersion ?? "?", available: appUpdate.availableVersion ?? "?" }) : appUpdate?.currentVersion ? t("settings.appUpdate.upToDate", { current: appUpdate.currentVersion }) : t("settings.appUpdate.unavailable")}
-                </div>
-              </div>
-              <button type="button" onClick={() => void checkForAppUpdate(true)} disabled={checkingAppUpdate} aria-label={t("settings.appUpdate.refreshAria")} style={{ padding: 7, border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "transparent", color: "var(--text-muted)", cursor: checkingAppUpdate ? "wait" : "pointer" }}><RefreshCw size={14} aria-hidden="true" /></button>
-            </div>
-
-          </section>
           <section style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div>

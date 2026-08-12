@@ -132,26 +132,8 @@ export function AppShell() {
       // ignore storage quota / privacy-mode errors
     }
   }, [sidebarWidth, sidebarResizing]);
-  const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);
   const [ompUpdateAvailable, setOmpUpdateAvailable] = useState(false);
-  const appUpdateInFlightRef = useRef(false);
   const ompUpdateInFlightRef = useRef(false);
-  const installAppUpdate = useCallback(async () => {
-    if (appUpdateInFlightRef.current) return;
-    appUpdateInFlightRef.current = true;
-    const appName = t("brand.appName");
-    try {
-      const response = await fetch("/api/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
-      setAppUpdateAvailable(false);
-      toast.success(t("updates.rocAppStarted.title", { app: appName }), t("updates.rocAppStarted.detail", { app: appName }));
-    } catch (error) {
-      toast.error(t("updates.rocAppFailed.title", { app: appName }), error instanceof Error ? error.message : String(error));
-    } finally {
-      appUpdateInFlightRef.current = false;
-    }
-  }, [t]);
   const installOmpUpdate = useCallback(async () => {
     if (ompUpdateInFlightRef.current) return;
     ompUpdateInFlightRef.current = true;
@@ -199,18 +181,6 @@ export function AppShell() {
       .catch(() => {});
     return () => controller.abort();
   }, [installOmpUpdate, t]);
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch("/api/update", { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: { currentVersion?: string; availableVersion?: string | null; updateAvailable?: boolean } | null) => {
-        setAppUpdateAvailable(Boolean(data?.updateAvailable));
-        if (!data?.updateAvailable || !data.availableVersion) return;
-        toast.info(t("updates.rocAppAvailable.title"), <span>{t("updates.rocAppAvailable.detailFmt", { current: data.currentVersion ?? "?", available: data.availableVersion })}. <button type="button" onClick={() => void installAppUpdate()} style={{ marginLeft: 6, padding: "3px 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: 11 }}>{t("updates.rocAppAvailable.action")}</button></span>);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [installAppUpdate, t]);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
 
@@ -696,7 +666,7 @@ export function AppShell() {
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
           >
-            <span style={{ position: "relative", display: "inline-flex" }}><Settings2 size={14} aria-hidden="true" />{(appUpdateAvailable || ompUpdateAvailable) && <span aria-label="Update available" role="status" style={{ position: "absolute", top: -3, right: -4, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", border: "1px solid var(--bg-panel)" }} />}</span>
+            <span style={{ position: "relative", display: "inline-flex" }}><Settings2 size={14} aria-hidden="true" />{ompUpdateAvailable && <span aria-label="Update available" role="status" style={{ position: "absolute", top: -3, right: -4, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", border: "1px solid var(--bg-panel)" }} />}</span>
             {t("settings.title")}
           </button>
       </div>
