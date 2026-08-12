@@ -27,16 +27,12 @@ const notoSerifSC = Noto_Serif_SC({
 });
 
 export const metadata: Metadata = {
-  title: "omp web",
-  description: "Web UI for the oh-my-pi (omp) coding agent",
+  title: "Rocinante",
+  description: "Web UI for the Rocinante coding agent",
   // PWA-like behavior on iOS: standalone chrome, no telephone autodetect.
   appleWebApp: {
     capable: true,
-    title: "omp web",
-    statusBarStyle: "default",
-  },
-  formatDetection: {
-    telephone: false,
+    title: "Rocinante",
   },
 };
 
@@ -66,12 +62,12 @@ export default function RootLayout({
             of the wrong theme. Matches html.dark selector in globals.css. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("omp-theme"),d=matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(t!=="light"&&t!=="dark"&&d))document.documentElement.classList.add("dark")}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("rocinante:theme"),d=matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(t!=="light"&&t!=="dark"&&d))document.documentElement.classList.add("dark")}catch(e){}})();`,
           }}
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var l=localStorage.getItem("omp-lang");if(l!=="en"&&l!=="zh-CN"&&l!=="ja"&&l!=="pt-BR"){var n=(navigator.language||"").toLowerCase();l=n.indexOf("zh")===0?"zh-CN":n.indexOf("ja")===0?"ja":n.indexOf("pt")===0?"pt-BR":"en"}document.documentElement.lang=l;document.cookie="omp-lang="+l+"; path=/; max-age=31536000; samesite=lax"}catch(e){}})();`,
+            __html: `(function(){try{var l=localStorage.getItem("rocinante:lang");if(l!=="en"&&l!=="zh-CN"&&l!=="ja"&&l!=="pt-BR"){var n=(navigator.language||"").toLowerCase();l=n.indexOf("zh")===0?"zh-CN":n.indexOf("ja")===0?"ja":n.indexOf("pt")===0?"pt-BR":"en"}document.documentElement.lang=l;document.cookie="rocinante-lang="+l+"; path=/; max-age=31536000; samesite=lax"}catch(e){}})();`,
           }}
         />
       </head>

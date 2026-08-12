@@ -16,7 +16,7 @@ export const LOCALES: Array<{ value: Locale; label: string }> = [
   { value: "pt-BR", label: "Português" },
 ];
 
-const STORAGE_KEY = "omp-lang";
+const STORAGE_KEY = "rocinante:lang";
 
 const dictionaries: Record<Locale, Record<string, string>> = {
   en: en as Record<string, string>,

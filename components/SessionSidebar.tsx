@@ -58,7 +58,7 @@ interface WorktreeState {
   worktrees: WorktreeEntry[];
 }
 
-const UNREAD_SESSIONS_STORAGE_KEY = "omp-web:unread-session-ids";
+const UNREAD_SESSIONS_STORAGE_KEY = "rocinante:unread-session-ids";
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -83,7 +83,7 @@ function saveUnreadSessionIds(ids: Set<string>): void {
   }
 }
 
-const EXPANDED_PROJECTS_STORAGE_KEY = "omp-web:expanded-projects";
+const EXPANDED_PROJECTS_STORAGE_KEY = "rocinante:expanded-projects";
 
 /** Shared empty set for the no-stored-expansion default (never mutated). */
 const EMPTY_PROJECT_SET: ReadonlySet<string> = new Set();
@@ -310,14 +310,15 @@ function useScramble(target: string, running: boolean, reducedMotion: boolean): 
   return display;
 }
 
-function OmpWebTitle() {
+function RocinanteTitle() {
+  const { t } = useI18n();
   const [showVersion, setShowVersion] = useState(false);
   const [scrambling, setScrambling] = useState(false);
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrambleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = usePrefersReducedMotion();
 
-  const target = showVersion ? `v${process.env.NEXT_PUBLIC_OMP_WEB_VERSION ?? "0.0.0"}` : "omp web";
+  const target = showVersion ? `v${process.env.NEXT_PUBLIC_ROCINANTE_VERSION ?? "0.0.0"}` : t("brand.appName");
   const display = useScramble(target, scrambling, reducedMotion);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
@@ -354,14 +355,14 @@ function OmpWebTitle() {
         fontFamily: "var(--font-mono)",
         minWidth: "6ch",
       }}
-      title={showVersion ? "Show ompweb name" : "Show ompweb version"}
+      title={showVersion ? t("brand.showAppName") : t("brand.showAppVersion")}
     >
       {display}
     </button>
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onExplorerRefresh, explorerRefreshing, onExplorerRefreshDone, onAtMention, onAtMentions }: Props) {
+ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onExplorerRefresh, explorerRefreshing, onExplorerRefreshDone, onAtMention, onAtMentions }: Props) {
   const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -992,7 +993,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <OmpWebTitle />
+          <RocinanteTitle />
           <div style={{ display: "flex", gap: 6 }}>
             <button
               onClick={handleNewSession}

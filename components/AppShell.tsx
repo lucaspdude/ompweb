@@ -35,7 +35,7 @@ const FileViewer = dynamic(() => import("./FileViewer").then((m) => m.FileViewer
 
 // Resizable desktop sidebar: the width is stored on the container as the
 // --sidebar-width CSS variable (globals.css) and persisted between sessions.
-const SIDEBAR_WIDTH_STORAGE_KEY = "omp-web:sidebar-width";
+const SIDEBAR_WIDTH_STORAGE_KEY = "rocinante:sidebar-width";
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 520;
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -115,7 +115,7 @@ export function AppShell() {
   const [sidebarResizing, setSidebarResizing] = useState(false);
   useEffect(() => {
     setSidebarWidth(loadSidebarWidth());
-  }, []);
+  }, [t]);
   // Persist the committed width (after each change; skipped mid-drag, then
   // written once the drag ends). The first run is skipped so the mount-time
   // default cannot overwrite the stored width before it is loaded.
@@ -139,33 +139,34 @@ export function AppShell() {
   const installAppUpdate = useCallback(async () => {
     if (appUpdateInFlightRef.current) return;
     appUpdateInFlightRef.current = true;
+    const appName = t("brand.appName");
     try {
-      const response = await fetch("/api/app-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
+      const response = await fetch("/api/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setAppUpdateAvailable(false);
-      toast.success("ompweb update started", "ompweb will restart automatically. Refresh when it is available again.");
+      toast.success(t("updates.rocAppStarted.title", { app: appName }), t("updates.rocAppStarted.detail", { app: appName }));
     } catch (error) {
-      toast.error("Could not update ompweb", error instanceof Error ? error.message : String(error));
+      toast.error(t("updates.rocAppFailed.title", { app: appName }), error instanceof Error ? error.message : String(error));
     } finally {
       appUpdateInFlightRef.current = false;
     }
-  }, []);
+  }, [t]);
   const installOmpUpdate = useCallback(async () => {
     if (ompUpdateInFlightRef.current) return;
     ompUpdateInFlightRef.current = true;
     try {
-      const response = await fetch("/api/omp-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
+      const response = await fetch("/api/rocinante-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setOmpUpdateAvailable(false);
-      toast.success("OMP updated", "Restart active OMP sessions in Settings to use the new runtime.");
+      toast.success(t("updates.ompCompleted.title"), t("updates.ompCompleted.detail"));
     } catch (error) {
-      toast.error("Could not update OMP", error instanceof Error ? error.message : String(error));
+      toast.error(t("updates.ompFailed.title"), error instanceof Error ? error.message : String(error));
     } finally {
       ompUpdateInFlightRef.current = false;
     }
-  }, []);
+  }, [t]);
   // On mobile the sidebar is an overlay drawer; hide it by default so the chat
   // is visible on load. Runs once the breakpoint resolves after hydration.
   useEffect(() => {
@@ -173,17 +174,17 @@ export function AppShell() {
   }, [isMobile]);
   useEffect(() => {
     setMobileSidebarReady(true);
-  }, []);
+  }, [t]);
   useEffect(() => {
-    setAdvisorEnabled(localStorage.getItem("omp-advisor-enabled") === "true");
-  }, []);
+    setAdvisorEnabled(localStorage.getItem("rocinante:advisor-enabled") === "true");
+  }, [t]);
   const handleAdvisorChange = useCallback((enabled: boolean) => {
     setAdvisorEnabled(enabled);
-    localStorage.setItem("omp-advisor-enabled", String(enabled));
-  }, []);
+    localStorage.setItem("rocinante:advisor-enabled", String(enabled));
+  }, [t]);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/omp-update", {
+    void fetch("/api/rocinante-update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "check" }),
@@ -193,23 +194,23 @@ export function AppShell() {
       .then((data: { currentVersion?: string | null; availableVersion?: string | null; updateAvailable?: boolean } | null) => {
         setOmpUpdateAvailable(Boolean(data?.updateAvailable));
         if (!data?.updateAvailable || !data.availableVersion) return;
-        toast.info("OMP update available", <span>v{data.currentVersion ?? "?"} -&gt; v{data.availableVersion}. <button type="button" onClick={() => void installOmpUpdate()} style={{ marginLeft: 6, padding: "3px 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: 11 }}>Update now</button></span>);
+        toast.info(t("updates.ompAvailable.title"), <span>{t("updates.ompAvailable.detailFmt", { current: data.currentVersion ?? "?", available: data.availableVersion })}. <button type="button" onClick={() => void installOmpUpdate()} style={{ marginLeft: 6, padding: "3px 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: 11 }}>{t("updates.ompAvailable.action")}</button></span>);
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [installOmpUpdate]);
+  }, [installOmpUpdate, t]);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/app-update", { signal: controller.signal })
+    void fetch("/api/update", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((data: { currentVersion?: string; availableVersion?: string | null; updateAvailable?: boolean } | null) => {
         setAppUpdateAvailable(Boolean(data?.updateAvailable));
         if (!data?.updateAvailable || !data.availableVersion) return;
-        toast.info("ompweb update available", <span>v{data.currentVersion ?? "?"} -&gt; v{data.availableVersion}. <button type="button" onClick={() => void installAppUpdate()} style={{ marginLeft: 6, padding: "3px 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: 11 }}>Update now</button></span>);
+        toast.info(t("updates.rocAppAvailable.title"), <span>{t("updates.rocAppAvailable.detailFmt", { current: data.currentVersion ?? "?", available: data.availableVersion })}. <button type="button" onClick={() => void installAppUpdate()} style={{ marginLeft: 6, padding: "3px 7px", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", background: "var(--bg-panel)", color: "var(--text)", cursor: "pointer", fontSize: 11 }}>{t("updates.rocAppAvailable.action")}</button></span>);
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [installAppUpdate]);
+  }, [installAppUpdate, t]);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
 
@@ -222,18 +223,18 @@ export function AppShell() {
     setBranchTree(tree);
     setBranchActiveLeafId(activeLeafId);
     branchLeafChangeFnRef.current = onLeafChange;
-  }, []);
+  }, [t]);
 
   const handleBranchLeafChange = useCallback((leafId: string | null) => {
     branchLeafChangeFnRef.current?.(leafId);
-  }, []);
+  }, [t]);
 
   const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
   const systemBtnRef = useRef<HTMLButtonElement>(null);
 
   const handleSystemPromptChange = useCallback((prompt: string | null) => {
     setSystemPrompt(prompt);
-  }, []);
+  }, [t]);
 
   // Session stats (tokens + cost) — populated by ChatWindow, displayed in top bar
   const [sessionStats, setSessionStats] = useState<SessionStatsInfo | null>(null);
@@ -243,7 +244,7 @@ export function AppShell() {
   activeSessionIdRef.current = selectedSession?.id ?? null;
   const handleSessionStatsChange = useCallback((stats: SessionStatsInfo | null) => {
     setSessionStats(stats);
-  }, []);
+  }, [t]);
   const [copiedSessionField, setCopiedSessionField] = useState<SessionCopyField | null>(null);
   const sessionCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCopySessionField = useCallback((field: SessionCopyField, value: string) => {
@@ -252,20 +253,20 @@ export function AppShell() {
       setCopiedSessionField(field);
       sessionCopyTimerRef.current = setTimeout(() => setCopiedSessionField(null), 1400);
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     return () => {
       if (sessionCopyTimerRef.current) clearTimeout(sessionCopyTimerRef.current);
       if (autoNameTimerRef.current) clearTimeout(autoNameTimerRef.current);
     };
-  }, []);
+  }, [t]);
 
   // Context usage — populated by ChatWindow, displayed in top bar
   const [contextUsage, setContextUsage] = useState<{ percent: number | null; contextWindow: number; tokens: number | null } | null>(null);
   const handleContextUsageChange = useCallback((usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => {
     setContextUsage(usage);
-  }, []);
+  }, [t]);
 
   // Single active panel — only one dropdown open at a time
   const [activeTopPanel, setActiveTopPanel] = useState<"branches" | "system" | "session" | null>(null);
@@ -288,11 +289,11 @@ export function AppShell() {
 
   const resetSidebarWidth = useCallback(() => {
     setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
-  }, []);
+  }, [t]);
 
   const changeSidebarWidth = useCallback((delta: number) => {
     setSidebarWidth((prev) => clampSidebarWidth(prev + delta));
-  }, []);
+  }, [t]);
 
   const handleSidebarResizeKey = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft") {
@@ -350,16 +351,16 @@ export function AppShell() {
   // read tool resolves it the same way (it strips the @ prefix).
   const handleAtMention = useCallback((relativePath: string, isDir: boolean) => {
     chatInputRef.current?.insertText(buildAtMentionText(relativePath, isDir));
-  }, []);
+  }, [t]);
 
   const handleAtMentions = useCallback((relativePaths: string[]) => {
     const mentions = buildFileAtMentionsText(relativePaths);
     if (mentions) chatInputRef.current?.insertText(mentions);
-  }, []);
+  }, [t]);
 
   const handleFileLineMention = useCallback((relativePath: string, startLine: number, endLine: number) => {
     chatInputRef.current?.insertText(buildFileLineMentionText(relativePath, startLine, endLine));
-  }, []);
+  }, [t]);
 
   const initialSessionId = initialNavigation.sessionId;
   const [activeCwd, setActiveCwd] = useState<string | null>(null);
@@ -484,7 +485,7 @@ export function AppShell() {
         setSelectedSession((prev) => (prev && prev.id === sessionId && !prev.projectRoot ? full : prev));
       })
       .catch(() => {});
-  }, []);
+  }, [t]);
 
   // Called by ChatWindow when a new session gets its real id from pi
   const handleSessionCreated = useCallback((session: SessionInfo) => {
@@ -556,11 +557,11 @@ export function AppShell() {
   const handleExplorerRefresh = useCallback(() => {
     setExplorerRefreshing(true);
     setExplorerRefreshKey((k) => k + 1);
-  }, []);
+  }, [t]);
 
   const handleExplorerRefreshDone = useCallback(() => {
     setExplorerRefreshing(false);
-  }, []);
+  }, [t]);
 
   const handleSessionForked = useCallback((newSessionId: string) => {
     setRefreshKey((k) => k + 1);
@@ -576,7 +577,7 @@ export function AppShell() {
 
   const handleInitialRestoreDone = useCallback(() => {
     setInitialSessionRestored(true);
-  }, []);
+  }, [t]);
 
   const handleSessionDeleted = useCallback((sessionId: string) => {
     setRefreshKey((k) => k + 1);

@@ -72,7 +72,7 @@ function runOmp(
 ): Promise<{ stdout: string; stderr: string }> {
   const bin = resolveOmpBin();
   if (!bin) {
-    return Promise.reject(new Error("omp binary not found. Install oh-my-pi or set OMP_WEB_OMP_BIN."));
+    return Promise.reject(new Error("omp binary not found. Install oh-my-pi or set ROCINANTE_OMP_BIN."));
   }
   return new Promise((resolve, reject) => {
     execFile(

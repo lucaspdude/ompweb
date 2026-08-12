@@ -68,17 +68,17 @@ export async function installNpmUpdate(): Promise<void> {
 }
 
 async function startDetachedUpdater(): Promise<void> {
-  const packageDir = process.env.OMP_WEB_PACKAGE_DIR ?? process.cwd();
+  const packageDir = process.env.ROCINANTE_PACKAGE_DIR ?? process.cwd();
   const helperPath = join(packageDir, "bin", "omp-web-update.js");
   const updaterArgs = [
     helperPath,
     "--parent-pid", String(process.pid),
     "--package-dir", packageDir,
-    "--port", process.env.OMP_WEB_PORT ?? process.env.PORT ?? "30177",
-    "--hostname", process.env.OMP_WEB_HOSTNAME ?? "127.0.0.1",
+    "--port", process.env.ROCINANTE_PORT ?? process.env.PORT ?? "30177",
+    "--hostname", process.env.ROCINANTE_HOSTNAME ?? "127.0.0.1",
   ];
-  if (process.env.OMP_WEB_LAUNCHER_PID) {
-    updaterArgs.push("--launcher-pid", process.env.OMP_WEB_LAUNCHER_PID);
+  if (process.env.ROCINANTE_LAUNCHER_PID) {
+    updaterArgs.push("--launcher-pid", process.env.ROCINANTE_LAUNCHER_PID);
   }
 
   const updater = spawn(process.execPath, updaterArgs, {

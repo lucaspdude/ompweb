@@ -4,8 +4,8 @@
 // prompt via --append-system-prompt. Pure module: no Node or React imports, so
 // both bundles can include it.
 
-/** Cookie mirroring the i18n localStorage key ("omp-lang") for the server. */
-export const LANGUAGE_COOKIE = "omp-lang";
+/** Cookie mirroring the i18n localStorage key ("rocinante:lang") for the server. */
+export const LANGUAGE_COOKIE = "rocinante:lang";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
@@ -20,7 +20,7 @@ const LANGUAGE_DIRECTIVES: Record<string, string> = {
     "The user has selected Brazilian Portuguese (pt-BR) as their preferred language. Always respond in Brazilian Portuguese — including all explanations, summaries, and status updates — even when the user writes in another language, unless they explicitly ask for a different language. Keep code, commands, file paths, and technical identifiers in their original form.",
 };
 
-/** Extract the language directive from a request's omp-lang cookie. */
+/** Extract the language directive from a request's rocinante-lang cookie. */
 export function languageDirectiveFromRequest(req: Request): string | undefined {
   const header = req.headers.get("cookie");
   if (!header) return undefined;

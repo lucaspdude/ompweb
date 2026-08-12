@@ -239,7 +239,7 @@ function RetryFallbackDetail({ models }: { models: RuntimeModelEntry[] }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/omp-settings")
+    fetch("/api/rocinante-settings")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then((data: { settings?: RetrySettings }) => setSettings(data.settings ?? {}))
       .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
@@ -249,7 +249,7 @@ function RetryFallbackDetail({ models }: { models: RuntimeModelEntry[] }) {
     setSettings(next);
     setError(null);
     try {
-      const response = await fetch("/api/omp-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
+      const response = await fetch("/api/rocinante-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
       const data = await response.json() as { settings?: RetrySettings; error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setSettings(data.settings ?? next);
@@ -301,7 +301,7 @@ function NativeRegistryDetail({ models, connectedProviders, onChanged }: { model
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/omp-settings")
+    fetch("/api/rocinante-settings")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then((data: { settings?: NativeRegistrySettings }) => setSettings(data.settings ?? {}))
       .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
@@ -312,7 +312,7 @@ function NativeRegistryDetail({ models, connectedProviders, onChanged }: { model
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch("/api/omp-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
+      const response = await fetch("/api/rocinante-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
       const data = await response.json() as { settings?: NativeRegistrySettings; error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setSettings(data.settings ?? next);

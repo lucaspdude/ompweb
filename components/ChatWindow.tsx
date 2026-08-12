@@ -134,7 +134,7 @@ function OmpRuntimeVersion() {
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/omp-version")
+    fetch("/api/rocinante-version")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { version: string | null } | null) => {
         // omp reports "omp/17.1.3"; show just the number next to the label.
@@ -517,7 +517,7 @@ export function ChatWindow({ session, newSessionCwd, advisorEnabled, onAgentEnd,
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, minWidth: 0, flex: 1, lineHeight: 1.4, overflow: "hidden" }}>
                 <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: 0, color: "var(--text)", flexShrink: 0, whiteSpace: "nowrap" }}>⌥</span>
-                <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, letterSpacing: 0, flexShrink: 0, whiteSpace: "nowrap" }}>omp web</span>
+                <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, letterSpacing: 0, flexShrink: 0, whiteSpace: "nowrap" }}>Rocinante</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
