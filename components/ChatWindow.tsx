@@ -134,7 +134,7 @@ function OmpRuntimeVersion() {
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/omp-version")
+    fetch("/api/rocinante-version")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { version: string | null } | null) => {
         // omp reports "omp/17.1.3"; show just the number next to the label.

@@ -90,7 +90,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
   }, [activeTab]);
 
   useEffect(() => {
-    fetch("/api/omp-settings")
+    fetch("/api/rocinante-settings")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
       .then((data: { settings?: NativeSettings }) => setNativeSettings(data.settings ?? {}))
       .catch((error) => setNativeSettingsError(error instanceof Error ? error.message : String(error)));
@@ -101,7 +101,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
     setNativeSettingsError(null);
     setNativeSavesInFlight((count) => count + 1);
     try {
-      const response = await fetch("/api/omp-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
+      const response = await fetch("/api/rocinante-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: next }) });
       const data = await response.json() as { settings?: NativeSettings; error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setNativeSettings(data.settings ?? next);
@@ -116,7 +116,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
     setChecking(true);
     setMessage(null);
     try {
-      const response = await fetch("/api/omp-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "check" }) });
+      const response = await fetch("/api/rocinante-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "check" }) });
       const data = await response.json() as UpdateState & { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setUpdate(data);
@@ -133,7 +133,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
   const checkForAppUpdate = useCallback(async (force = false) => {
     setCheckingAppUpdate(true);
     try {
-      const response = await fetch(force ? "/api/app-update?force=1" : "/api/app-update");
+      const response = await fetch(force ? "/api/update?force=1" : "/api/update");
       const data = await response.json() as UpdateState & { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setAppUpdate(data);
@@ -150,7 +150,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
     setUpdating(true);
     setMessage(null);
     try {
-      const response = await fetch("/api/omp-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
+      const response = await fetch("/api/rocinante-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setMessage(t("settings.ompUpdate.updateSuccess"));
@@ -165,7 +165,7 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
   const restartSessions = useCallback(async () => {
     setRestarting(true);
     try {
-      const response = await fetch("/api/omp-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restart" }) });
+      const response = await fetch("/api/rocinante-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restart" }) });
       const data = await response.json() as { error?: string; sessionsRestarted?: number };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setMessage(t("settings.ompUpdate.restartSuccess", { count: data.sessionsRestarted ?? 0 }));

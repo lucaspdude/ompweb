@@ -141,7 +141,7 @@ export function AppShell() {
     appUpdateInFlightRef.current = true;
     const appName = t("brand.appName");
     try {
-      const response = await fetch("/api/app-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
+      const response = await fetch("/api/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setAppUpdateAvailable(false);
@@ -156,7 +156,7 @@ export function AppShell() {
     if (ompUpdateInFlightRef.current) return;
     ompUpdateInFlightRef.current = true;
     try {
-      const response = await fetch("/api/omp-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
+      const response = await fetch("/api/rocinante-update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update" }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
       setOmpUpdateAvailable(false);
@@ -184,7 +184,7 @@ export function AppShell() {
   }, [t]);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/omp-update", {
+    void fetch("/api/rocinante-update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "check" }),
@@ -201,7 +201,7 @@ export function AppShell() {
   }, [installOmpUpdate, t]);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/app-update", { signal: controller.signal })
+    void fetch("/api/update", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((data: { currentVersion?: string; availableVersion?: string | null; updateAvailable?: boolean } | null) => {
         setAppUpdateAvailable(Boolean(data?.updateAvailable));
