@@ -257,7 +257,7 @@
   "errors.api_key_remove_unsupported": "O omp-web não pode remover chaves de API armazenadas. Execute `omp` em um terminal e use /logout, ou edite a configuração do provedor em ~/.omp/agent/models.yml.",
   "errors.api_key_store_unsupported": "O omp-web não pode armazenar chaves de API. Execute `omp` em um terminal e use /login, defina a variável de ambiente do provedor (ex.: OPENAI_API_KEY) ou configure uma apiKey em um provedor personalizado em ~/.omp/agent/models.yml.",
   "errors.assistant_message_not_found": "Mensagem do assistente não encontrada",
-  "errors.bash_exclude_unsupported": "O omp não pode executar um comando de shell com a saída excluída do contexto do modelo (`!!`): o comando bash via RPC não tem opção de exclusão, então a saída entraria silenciosamente no contexto mesmo assim. Execute com um único `!` para compartilhar a saída com o modelo, ou use um terminal fora do Rocinante.",
+  "errors.bash_exclude_unsupported": "O Rocinante não pode executar um comando de shell com a saída excluída do contexto do modelo (`!!`): o comando bash via RPC não tem opção de exclusão, então a saída entraria silenciosamente no contexto mesmo assim. Execute com um único `!` para compartilhar a saída com o modelo, ou use um terminal fora do Rocinante.",
   "errors.bash_output_too_large": "A saída completa é grande demais para exibir",
   "errors.bash_output_unavailable": "A saída completa está indisponível",
   "errors.branch_required": "Um nome de ramo é obrigatório",
