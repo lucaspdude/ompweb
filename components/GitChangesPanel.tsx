@@ -86,6 +86,17 @@ export function GitChangesPanel({ cwd, onOpenFile, onChangesCount }: Props) {
     void load(cwd);
   }, [cwd, load]);
 
+  // Report the total file count to the parent whenever the scan settles.
+  // MUST stay above any early return — React requires hooks to be called
+  // in the same order on every render. The original Phase 1 code placed
+  // this useEffect after the early returns, which threw "Rendered fewer
+  // hooks than expected" on the first scan error.
+  const repos = scan?.repositories ?? [];
+  const totalCount = repos.reduce((sum, r) => sum + r.fileCount, 0);
+  useEffect(() => {
+    onChangesCount?.(totalCount);
+  }, [totalCount, onChangesCount]);
+
   if (!cwd) {
     return (
       <EmptyState
@@ -112,12 +123,6 @@ export function GitChangesPanel({ cwd, onOpenFile, onChangesCount }: Props) {
       </div>
     );
   }
-
-  const repos = scan?.repositories ?? [];
-  const totalCount = repos.reduce((sum, r) => sum + r.fileCount, 0);
-  useEffect(() => {
-    onChangesCount?.(totalCount);
-  }, [totalCount, onChangesCount]);
 
   if (repos.length === 0) {
     return (

@@ -17,7 +17,7 @@ import { translate, useI18n } from "@/lib/i18n";
 import { formatApiError } from "@/lib/i18n/api-error";
 import { OnboardingModal } from "./OnboardingModal";
 import { RightSidebar } from "./RightSidebar";
- import { Settings2 } from "lucide-react";
+ import { Settings2, Sparkles } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { getFileName } from "@/lib/file-paths";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
@@ -691,7 +691,24 @@ export function AppShell() {
         onAtMention={handleAtMention}
         onAtMentions={handleAtMentions}
       />
-      <div style={{ padding: "8px", flexShrink: 0, display: "flex", justifyContent: "space-between", gap: 4 }}>
+      <div style={{ padding: "8px", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 4 }}>
+        <button
+            onClick={() => { setOnboardingWizardMode(true); setOnboardingOpen(true); }}
+            title={t("onboarding.common.runSetupWizard")}
+            aria-label={t("onboarding.common.runSetupWizard")}
+            style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              height: 32, padding: 0, background: "none", border: "none",
+              borderRadius: 9, color: "var(--text-muted)", cursor: "pointer",
+              fontSize: 12,
+              transition: "background var(--dur-fast) var(--ease-out-warm), color var(--dur-fast) var(--ease-out-warm)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; e.currentTarget.style.color = "var(--text)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
+        >
+          <Sparkles size={14} aria-hidden="true" />
+          {t("onboarding.common.runSetupWizard")}
+        </button>
         <button
             onClick={() => setSettingsTab("general")}
             title={t("settings.title")}
@@ -1466,50 +1483,14 @@ export function AppShell() {
         isMobile={isMobile}
       />
     </div>
-    {/* File panel toggle — always visible at top-right */}
-    <button
-      onClick={() => setRightPanelOpen((v) => !v)}
-      title={rightPanelOpen ? t("appShell.hideFilePanel") : t("appShell.showFilePanel")}
-      aria-label={rightPanelOpen ? t("appShell.hideFilePanel") : t("appShell.showFilePanel")}
-      style={{
-        position: "fixed", top: 0, right: 0, zIndex: 300,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, padding: 0,
-        background: "var(--bg-panel)", border: "none", borderLeft: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
-        color: rightPanelOpen ? "var(--text)" : "var(--text-muted)",
-        cursor: "pointer", transition: "color var(--dur-fast) var(--ease-out-warm)",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelOpen ? "var(--text)" : "var(--text-muted)"; }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
-      </svg>
-    </button>
-    {settingsTab && <SettingsConfig activeTab={settingsTab} advisorEnabled={advisorEnabled} onAdvisorChange={handleAdvisorChange} cwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd} sessionId={selectedSession?.id ?? null} onModelsSaved={() => setModelsRefreshKey((k) => k + 1)} onPluginsReloaded={() => setSessionKey((k) => k + 1)} onOmpUpdateAvailabilityChange={setOmpUpdateAvailable} onSelectTab={setSettingsTab} onClose={() => setSettingsTab(null)} />}
+{settingsTab && <SettingsConfig activeTab={settingsTab} advisorEnabled={advisorEnabled} onAdvisorChange={handleAdvisorChange} cwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd} sessionId={selectedSession?.id ?? null} onModelsSaved={() => setModelsRefreshKey((k) => k + 1)} onPluginsReloaded={() => setSessionKey((k) => k + 1)} onOmpUpdateAvailabilityChange={setOmpUpdateAvailable} onSelectTab={setSettingsTab} onClose={() => setSettingsTab(null)} />}
     <OnboardingModal
       open={onboardingOpen}
       onOpenChange={setOnboardingOpen}
       wizardMode={onboardingWizardMode}
       onFinished={() => { setOnboardingNeeds(false); setOnboardingWizardMode(false); }}
     />
-    <button
-      type="button"
-      onClick={() => { setOnboardingWizardMode(true); setOnboardingOpen(true); }}
-      title={t("onboarding.common.runSetupWizard")}
-      style={{
-        position: "fixed", top: 0, right: isMobile ? 88 : 80, zIndex: 300,
-        height: isMobile ? 44 : 36,
-        padding: "0 10px",
-        background: "var(--bg-panel)", border: "none", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
-        color: "var(--text-muted)", fontSize: 12, cursor: "pointer", fontWeight: 500,
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-    >
-      {t("onboarding.common.runSetupWizard")}
-    </button>
-    </ToastProvider>
+</ToastProvider>
     </>
   );
 }
