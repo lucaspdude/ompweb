@@ -4,6 +4,26 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.2] — 2026-08-13
+
+### Fixed
+
+- **\`install.sh --omit=dev\` skipped devDependencies needed by \`next build\`**
+  (\`@tailwindcss/postcss\`, typescript chain). The resulting
+  \`Cannot find module '@tailwindcss/postcss'\` error combined with the
+  pre-existing font CDN failure routed every clean install through the
+  dev-fallback branch — the symlink then pointed at the dev server
+  instead of the production build, so the UI never rendered. Drop
+  \`--omit=dev\` from the install \`npm ci\`.
+- **\`/api/cli-tools/[id]/login/stream\` used \`maxDuration = 60 * 30\`**
+  (a BinaryExpression). Next.js 16's route config parser only accepts
+  literal numbers; the build aborted with
+  \`Unsupported node type "BinaryExpression" at "maxDuration"\`. Replace
+  with literal \`1800\` (30 min × 60 s).
+
+After both fixes a clean install on a fresh host (harness) builds
+the production bundle and writes \`.env\` correctly.
+
 ## [0.4.1] — 2026-08-13
 
 ### Fixed
