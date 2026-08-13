@@ -1,4 +1,4 @@
-# ompweb
+# Rocinante
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [日本語](./README.ja.md)
 
@@ -20,42 +20,50 @@ Local web UI for the [oh-my-pi (omp) coding agent](https://github.com/can1357/oh
 
 ## Quick Start
 
-**Run without installing:**
+**One-line install** (recommended — installs `omp` and the `rocinante`
+package in a single shot):
 
 ```bash
-npx @kahme247/ompweb@latest
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.sh | sh
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.ps1 | iex
 ```
 
-**Or install globally:**
+Then run `rocinante` to start the UI. It opens on
+[http://127.0.0.1:30178](http://127.0.0.1:30178) by default and the CLI
+tries to open the browser automatically once the server is ready.
+
+**Skip the install script** (manual `npm install` — useful when `omp` is
+already on your `PATH` or you want to pin the package version):
 
 ```bash
-npm install -g @kahme247/ompweb
-ompweb
+npm install -g @lucaspdude/rocinante
+rocinante
 ```
-
-Then open [http://127.0.0.1:30177](http://127.0.0.1:30177). The CLI will try to open the browser automatically after the server is ready. ompweb listens on `127.0.0.1` by default.
 
 **Options:**
 
 ```bash
-ompweb --port 8080              # custom port
-ompweb --hostname 0.0.0.0       # expose on a trusted network
-ompweb -p 8080 -H 0.0.0.0       # combine options
-ompweb --no-open                # do not open the browser automatically
+rocinante --port 8080           # custom port
+rocinante --hostname 0.0.0.0    # expose on a trusted network
+rocinante -p 8080 -H 0.0.0.0    # combine options
+rocinante --no-open             # do not open the browser automatically
 
-PORT=8080 ompweb                # environment variable is also supported
-OMP_WEB_HOSTNAME=0.0.0.0 ompweb # explicit network exposure
-OMP_WEB_PASSWORD='a-long-random-password' ompweb # require Basic Auth (username: omp)
-OMP_WEB_NO_OPEN=1 ompweb        # useful when running as a background service
+PORT=8080 rocinante             # environment variable is also supported
+ROCINANTE_HOSTNAME=0.0.0.0 rocinante # explicit network exposure
+ROCINANTE_PASSWORD='a-long-random-password' rocinante # require Basic Auth (username: rocinante)
+ROCINANTE_NO_OPEN=1 rocinante   # useful when running as a background service
 ```
 
-Set `OMP_WEB_PASSWORD` to protect the interface and every API endpoint with HTTP Basic Auth. The username is always `omp`; leaving the variable unset disables authentication. Basic Auth does not encrypt traffic, so remote use still requires HTTPS through a trusted reverse proxy or VPN.
+Set `ROCINANTE_PASSWORD` to protect the interface and every API endpoint with HTTP Basic Auth. The username is always `omp`; leaving the variable unset disables authentication. Basic Auth does not encrypt traffic, so remote use still requires HTTPS through a trusted reverse proxy or VPN.
 
 ### Security and troubleshooting
 
 - The server binds to `127.0.0.1` by default. A non-loopback hostname is an explicit opt-in and should only be used behind a trusted network boundary; ompweb is not safe to expose publicly.
 - File APIs are allow-listed to the selected workspace, its valid Git worktrees, session-referenced directories, and explicitly selected roots. Paths are canonicalized to reject traversal and symlink escapes.
-- `omp` is resolved from `OMP_WEB_OMP_BIN` first, then `PATH`. If live chat cannot start, run `omp --version` in the same terminal or set `OMP_WEB_OMP_BIN` to the executable's absolute path.
+- `omp` is resolved from `ROCINANTE_OMP_BIN` first, then `PATH`. If live chat cannot start, run `omp --version` in the same terminal or set `ROCINANTE_OMP_BIN` to the executable's absolute path. The install script offers a hint when `omp` is missing on first launch.
 - Session history remains native OMP JSONL. OMP owns live-session writes; ompweb reads the files directly and only performs explicit title, archive, and delete maintenance when it is not racing a live OMP write.
 - Session archive uses OMP's native `archive/sessions/<cwd>/<file>.jsonl.gz` layout and moves sibling artifacts with the transcript; the original JSONL bytes are preserved inside the gzip.
 
@@ -78,10 +86,17 @@ Set `OMP_WEB_PASSWORD` to protect the interface and every API endpoint with HTTP
 
 | Variable | Meaning |
 | --- | --- |
+| `ROCINANTE_OMP_BIN` | Absolute path to the `omp` binary (overrides PATH lookup). |
+| `ROCINANTE_PORT` | UI port (overrides `--port`). |
+| `ROCINANTE_HOSTNAME` | Bind address (overrides `--hostname`). |
+| `ROCINANTE_PASSWORD` | Enables HTTP Basic Auth; username is always `rocinante`. |
+| `ROCINANTE_NO_OPEN` | `1` to skip the auto-open browser step. |
+| `ROCINANTE_PACKAGE_DIR` | Set automatically by the launcher. |
+| `ROCINANTE_LAUNCHER_PID` | Set automatically by the launcher. |
 | `PORT` | Server port (default `30177`; `-p/--port` wins) |
-| `OMP_WEB_HOSTNAME` | Bind hostname (default `127.0.0.1`; `-H/--hostname` wins) |
-| `OMP_WEB_PASSWORD` | Optional HTTP Basic Auth password (username: `omp`) |
-| `OMP_WEB_NO_OPEN` | Set to `1`/`true` to skip auto-opening the browser |
+| `ROCINANTE_HOSTNAME` | Bind hostname (default `127.0.0.1`; `-H/--hostname` wins) |
+| `ROCINANTE_PASSWORD` | Optional HTTP Basic Auth password (username: `omp`) |
+| `ROCINANTE_NO_OPEN` | Set to `1`/`true` to skip auto-opening the browser |
 | `OMP_WEB_OMP_BIN` | Absolute path to the `omp` binary when it is not on `PATH` |
 | `PI_CODING_AGENT_DIR` | Point at another omp agent directory (default `~/.omp/agent`) |
 | `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` | Standard proxy variables for server-side requests |
