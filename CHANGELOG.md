@@ -4,6 +4,17 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.4] — 2026-08-13
+
+### Fixed
+
+- **\`/login\` page triggered Next.js 16's static pre-render abort**
+  (\`useSearchParams() should be wrapped in a suspense boundary\`)
+  because the form reads \`?next=\` from the URL. The abort routes the
+  install through the dev-fallback branch, and the symlink ends up
+  pointing at the dev server, not the production build. Wrap the
+  form in \`<Suspense>\` so Next can statically pre-render the shell.
+
 ## [0.4.3] — 2026-08-13
 
 ### Fixed
