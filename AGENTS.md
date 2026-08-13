@@ -190,6 +190,37 @@ handled or safely ignored.
   treatment, and the active project's worktree selector renders directly
   below its row.
 
+### Right sidebar (Files + Changes tabs)
+- The right sidebar (`components/RightSidebar.tsx`) is a tabbed container with
+  a vertical rail (`RightSidebarRail`) on the left and a content area to the
+  right. The rail shows the **Files** and **Changes** tabs as icon buttons;
+  the active tab gets the `--bg-selected` background + an accent indicator.
+  Tabs cycle through three discrete width states persisted to `localStorage`
+  key `rocinante:right-sidebar-state`: `"collapsed"` (44px rail-only) →
+  `"default"` (360px) → `"wide"` (540px) → back to collapsed. The top-right
+  toggle button still opens/closes the panel; clicking an inactive tab
+  switches and expands to `"default"`; clicking the active tab while
+  expanded cycles the width.
+- The **Files** tab hosts the `FileExplorer` (when no file tab is open) and
+  the `TabBar` + `FileViewer` stack (when a file is open). The
+  `FileExplorer` was moved here from the `SessionSidebar` (it no longer
+  lives in the left sidebar). File tabs are opened by `onOpenFile` from
+  either the tree or the Changes tab.
+- The **Changes** tab hosts the `GitChangesPanel`, which calls
+  `GET /api/git/repos?cwd=` to scan a tree for Git repositories (BFS up to
+  depth 4, skipping ignored dirs) and list modified files per repo.
+  Endpoint + walker live in `lib/git-repo-scan.ts`; the scan is cached on
+  `globalThis` with a 5s TTL to mirror the allowed-roots cache.
+- File tree nodes wrap in `ContextMenuRoot` + `ContextMenuTrigger` from
+  `components/ui/context-menu.tsx`. The Phase 1 menu items are copy
+  (name / absolute path / relative path) and refresh; destructive actions
+  (delete / rename / create) live in Phase 1.5 / Phase 2.
+- New `/api/files` verbs added: `DELETE` (single file or recursive dir with
+  `?recursive=true`), `PATCH` (rename via JSON `{ name }`), `POST` with
+  `?type=mkdir` and `?type=touch` for Phase 2. Shared implementation lives
+  in `lib/file-mutations.ts` with `FileMutationError` (typed codes the
+  routes translate to HTTP status: 404 / 409 / 400).
+
 ### File access allow-list
 - `/api/files` is intentionally not a general filesystem browser. Allowed roots come from session cwds, their resolved project roots, `~/omp-cwd-*`, and roots explicitly added with `allowFileRoot()`.
 - `/api/cwd/validate`, `/api/default-cwd`, and `/api/worktrees` call `allowFileRoot()` when they make a new location browsable.

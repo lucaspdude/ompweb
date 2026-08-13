@@ -1171,6 +1171,49 @@ span.linenumber {
   }
 }
 
+/* Right sidebar: tabbed sidebar (Files / Changes). The width is set inline
+   by the React component from one of three discrete states
+   (collapsed=44px, default=360px, wide=540px) — see RightSidebar.tsx. The
+   data-state attribute lets us layer media-query overrides without
+   recomputing the width in JS. */
+.right-sidebar-container {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+@media (min-width: 641px) {
+  .right-sidebar-container[data-state="default"] {
+    width: 360px;
+  }
+  .right-sidebar-container[data-state="wide"] {
+    width: 540px;
+  }
+  .right-sidebar-container[data-state="collapsed"] {
+    width: 44px;
+  }
+}
+/* Mobile: render as overlay drawer when open */
+@media (max-width: 640px) {
+  .right-sidebar-container {
+    position: fixed !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    max-width: 100vw;
+    z-index: 200;
+    background: var(--bg);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    border-left: 1px solid var(--border);
+  }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
 /* Mobile sidebar: slide in/out as overlay */
 @media (max-width: 640px) {
   .chat-stats-center {
