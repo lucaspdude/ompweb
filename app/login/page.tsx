@@ -1,11 +1,42 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
+// Next.js 16 requires useSearchParams() to be inside a Suspense boundary
+// at build time (otherwise the static pre-render step aborts with
+// 'useSearchParams() should be wrapped in a suspense boundary'). Wrap
+// the form in Suspense so Next can statically generate the shell and
+// hydrate the search-params-dependent bits on the client.
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--bg)",
+        color: "var(--text)",
+      }}
+    >
+      <div role="status" style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading…</div>
+    </main>
+  );
+}
+
+function LoginForm() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
