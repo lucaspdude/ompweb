@@ -4,6 +4,18 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.1] — 2026-08-13
+
+### Fixed
+
+- **install.sh `seed_env_file` was inside the `cat <<EOF` heredoc** in
+  the `Main` function, so the function was never actually defined when
+  the build script called it. Result: every install since v0.4.0
+  aborted with `seed_env_file: command not found` after a successful
+  build. The fix moves the function definition outside the heredoc and
+  the call site to just before `main`'s closing `}`. No behavior change
+  for the printed output.
+
 ## [0.4.0] — 2026-08-13
 
 ### Added

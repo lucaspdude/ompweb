@@ -3,7 +3,7 @@
 Rocinante is distributed through **GitHub Releases** — the standalone
 install scripts (`scripts/install.sh` and `scripts/install.ps1`)
 download the source tarball of the matching tag from
-`https://github.com/lucaspdude/ompweb/archive/refs/tags/<tag>.tar.gz`,
+`https://github.com/lucaspdude/rocinante/archive/refs/tags/<tag>.tar.gz`,
 build locally, and symlink the launcher. **npm is not in the install
 path.**
 
@@ -51,10 +51,10 @@ before pushing** (the version bump is a single commit on its own — it
 should not pull in feature changes).
 
 Pushing the tag pushes a GitHub Release with the auto-generated source
-tarball at `https://github.com/lucaspdude/ompweb/archive/refs/tags/<tag>.tar.gz`.
+tarball at `https://github.com/lucaspdude/rocinante/archive/refs/tags/<tag>.tar.gz`.
 
 The install script reads the latest release via the GitHub API
-(`/repos/lucaspdude/ompweb/releases/latest`) and downloads the source
+(`/repos/lucaspdude/rocinante/releases/latest`) and downloads the source
 tarball, then runs `npm ci` + `npm run build` locally.
 
 > **Optional: ship a prebuilt tarball.** If installs become too slow
@@ -71,11 +71,11 @@ from the latest GitHub release.
 
 **macOS / Linux:**
 
-    curl -fsSL https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.sh | sh
 
 **Windows (PowerShell):**
 
-    irm https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.ps1 | iex
 
 Both scripts:
 

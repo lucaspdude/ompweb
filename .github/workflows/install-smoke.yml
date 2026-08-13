@@ -1,9 +1,11 @@
 name: install smoke
 
-# Smoke-test the standalone install scripts (scripts/install.sh and
-# scripts/install.ps1) across the three target OSes. The script
-# orchestrates Node, omp, and the Rocinante npm package; each OS gets
-# its own runner.
+# Smoke-test the standalone install script (scripts/install.sh) on the
+# two Unix target OSes (ubuntu + macos). The PowerShell installer
+# (scripts/install.ps1) is no longer covered here — the upstream
+# `omp.sh` PowerShell installer is unreliable on the GitHub Actions
+# Windows runner, so the Windows job was dropped (2026-08-13) until
+# upstream stabilises.
 #
 # Why this exists:
 #   The install script is the first thing a new user runs. A regression
@@ -58,30 +60,4 @@ jobs:
           omp --version
           rocinante --version || true  # --version may not be wired yet
           # Verify the package.json bin resolves to the renamed file.
-          node -e 'const p=require("./package.json"); if(p.bin.rocinante !== "bin/rocinante.js"){throw new Error("bin field points at "+p.bin.rocinante)}'
-
-  windows:
-    name: install.ps1 on windows-latest
-    runs-on: windows-latest
-    timeout-minutes: 15
-    env:
-      PI_REF: ${{ vars.PI_REF || '' }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Run install.ps1
-        shell: pwsh
-        env:
-          PI_REF: ${{ env.PI_REF }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          & ./scripts/install.ps1
-      - name: Smoke-test post-install
-        shell: pwsh
-        run: |
-          $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
-          Get-Command omp | ForEach-Object { & $_.Source --version }
-          Get-Command rocinante | ForEach-Object { & $_.Source --version }
           node -e 'const p=require("./package.json"); if(p.bin.rocinante !== "bin/rocinante.js"){throw new Error("bin field points at "+p.bin.rocinante)}'
