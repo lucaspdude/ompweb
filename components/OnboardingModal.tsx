@@ -9,16 +9,18 @@ import { OnboardingStepper } from "./OnboardingStepper";
 import { OnboardingProvidersStep } from "./OnboardingProvidersStep";
 import { OnboardingModelStep } from "./OnboardingModelStep";
 import { OnboardingDoneStep } from "./OnboardingDoneStep";
+import { OnboardingSecurityStep } from "./OnboardingSecurityStep";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 // The flow now has 4 steps instead of 6. The omp and agentDir steps were
 // removed because the install script (scripts/install.sh) automatically
 // installs omp and seeds ~/.omp/agent — those steps were redundant on
 // first-run AND on wizard re-runs.
-export type OnboardingStepIndex = 0 | 1 | 2 | 3;
+export type OnboardingStepIndex = 0 | 1 | 2 | 3 | 4;
 
 const STEP_LABELS = [
   "onboarding.steps.welcome",
+  "onboarding.steps.security",
   "onboarding.steps.providers",
   "onboarding.steps.model",
   "onboarding.steps.done",
@@ -32,7 +34,7 @@ function loadLastCompletedStep(): number {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return 0;
     const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 0 && n <= 3 ? n : 0;
+    return Number.isFinite(n) && n >= 0 && n <= 4 ? n : 0;
   } catch {
     return 0;
   }
@@ -55,7 +57,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
   useEffect(() => {
     if (open) {
       const last = loadLastCompletedStep();
-      setStep(Math.min(last + 1, 3) as OnboardingStepIndex);
+      setStep(Math.min(last + 1, 4) as OnboardingStepIndex);
     }
   }, [open]);
 
@@ -68,7 +70,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
 
   const advance = useCallback(() => {
     setStep((s) => {
-      const next = Math.min(s + 1, 3) as OnboardingStepIndex;
+      const next = Math.min(s + 1, 4) as OnboardingStepIndex;
       persistStep(s);
       return next;
     });
@@ -79,14 +81,14 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
   }, []);
 
   const handleFinish = useCallback(() => {
-    persistStep(3);
+    persistStep(4);
     onOpenChange(false);
     onFinished?.();
   }, [persistStep, onOpenChange, onFinished]);
 
   const handleSkipAll = useCallback(() => {
     setSkipConfirmOpen(false);
-    persistStep(3);
+    persistStep(4);
     onOpenChange(false);
     onFinished?.();
   }, [persistStep, onOpenChange, onFinished]);
@@ -147,18 +149,24 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
               />
             )}
             {step === 1 && (
+              <OnboardingSecurityStep
+                onAdvance={advance}
+                onSkip={wizardMode ? handleSkipAll : () => setSkipConfirmOpen(true)}
+              />
+            )}
+            {step === 2 && (
               <OnboardingProvidersStep
                 status={status}
                 onRefresh={refresh}
               />
             )}
-            {step === 2 && (
+            {step === 3 && (
               <OnboardingModelStep
                 status={status}
                 onRefresh={refresh}
               />
             )}
-            {step === 3 && (
+            {step === 4 && (
               <OnboardingDoneStep
                 onFinish={handleFinish}
                 onOpenSettings={() => {
@@ -187,7 +195,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
               gap: 8,
             }}
           >
-            {step > 0 && step < 3 ? (
+            {step > 0 && step < 4 ? (
               <Button variant="secondary" onClick={back}>
                 {t("onboarding.common.back")}
               </Button>
@@ -214,7 +222,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
                 {t("onboarding.common.next")}
               </Button>
             )}
-            {step === 3 && (
+            {step === 4 && (
               <Button variant="primary" onClick={handleFinish}>
                 {t("onboarding.done.finish")}
               </Button>
