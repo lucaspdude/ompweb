@@ -12,9 +12,11 @@ import { TabBar, type Tab } from "./TabBar";
 import { BranchNavigator } from "./BranchNavigator";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useTheme } from "@/hooks/useTheme";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { translate, useI18n } from "@/lib/i18n";
 import { formatApiError } from "@/lib/i18n/api-error";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { RightSidebar } from "./RightSidebar";
+
 import { Settings2 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { getFileName } from "@/lib/file-paths";
@@ -1415,51 +1417,22 @@ export function AppShell() {
         </div>
       </main>
 
-      {/* Right panel: file viewer — always mounted, width animated via CSS */}
-      <div
-        className={`right-panel-container${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}`}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          borderLeft: "1px solid var(--border)",
-          background: "var(--bg)",
-        }}
-      >
-        {/* Right panel tab bar */}
-        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36 }}>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <TabBar
-              tabs={fileTabs}
-              activeTabId={activeFileTabId ?? ""}
-              onSelectTab={setActiveFileTabId}
-              onCloseTab={handleCloseFileTab}
-            />
-          </div>
-
-        </div>
-
-        {/* File content */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
-          {activeFileTab?.filePath ? (
-            <FileViewer
-              filePath={activeFileTab.filePath}
-              cwd={activeCwd ?? undefined}
-              sourceSessionId={activeFileTab.sourceSessionId}
-              gitRefreshKey={explorerRefreshKey}
-              onMentionLines={rightPanelOpen ? handleFileLineMention : undefined}
-              onOpenFile={(filePath) => handleOpenFile(
-                filePath,
-                getFileName(filePath),
-                activeFileTab.sourceSessionId,
-              )}
-            />
-          ) : (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>
-              {t("appShell.noFileOpen")}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Right sidebar: Files + Changes tabs */}
+      <RightSidebar
+        open={rightPanelOpen}
+        onOpenChange={setRightPanelOpen}
+        selectedCwd={activeCwd}
+        fileTabs={fileTabs}
+        activeFileTabId={activeFileTabId}
+        onSelectFileTab={setActiveFileTabId}
+        onCloseFileTab={handleCloseFileTab}
+        onOpenFile={handleOpenFile}
+        onMentionLines={rightPanelOpen ? handleFileLineMention : undefined}
+        sourceSessionId={selectedSession?.id ?? null}
+        explorerRefreshKey={explorerRefreshKey}
+        gitChangesRefreshKey={refreshKey}
+        isMobile={isMobile}
+      />
     </div>
     {/* File panel toggle — always visible at top-right */}
     <button

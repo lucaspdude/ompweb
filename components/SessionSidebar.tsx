@@ -7,8 +7,8 @@ import { formatApiError } from "@/lib/i18n/api-error";
 import { CreateProjectDialog } from "./CreateProjectDialog";
 import { EditProjectDialog } from "./EditProjectDialog";
 import { CloneProjectDialog } from "./CloneProjectDialog";
-import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { Tooltip, Collapsible, CollapsibleTrigger, CollapsiblePanel } from "./ui/primitives";
+
 import { toast } from "./ui/toast";
 import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuTrigger } from "./ui/context-menu";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
@@ -435,9 +435,6 @@ function RocinanteTitle() {
   const [wtConfirmRemove, setWtConfirmRemove] = useState<string | null>(null);
   const wtDropdownRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [explorerOpen, setExplorerOpen] = useState(true);
-  const [explorerKey, setExplorerKey] = useState(0);
-  const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
   const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
@@ -450,7 +447,6 @@ function RocinanteTitle() {
   // running state; late /api/sessions responses must not overwrite it.
   const sseAuthoritativeRef = useRef(false);
   const sessionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fileExplorerRef = useRef<FileExplorerHandle>(null);
 
   const loadSessions = useCallback(async (showLoading = false) => {
     try {
@@ -587,9 +583,7 @@ function RocinanteTitle() {
     });
   }, [selectedSessionId]);
 
-  useEffect(() => {
-    if (explorerRefreshKey !== undefined) setExplorerKey((k) => k + 1);
-  }, [explorerRefreshKey]);
+
 
   useEffect(() => {
     fetch("/api/home").then((r) => r.json()).then((d: { home?: string }) => {
@@ -1361,7 +1355,7 @@ function RocinanteTitle() {
       {/* Projects */}
         <div
           style={{
-            flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto",
+            flex: "1 1 0",
             overflowY: "auto",
             padding: "10px 12px 12px",
             minHeight: 80,
@@ -1469,113 +1463,6 @@ function RocinanteTitle() {
               archiveBusyPath={archiveBusyPath}
             />
           )}
-      {/* File Explorer section */}
-      {(selectedCwdProp || selectedCwd) && (
-        <div
-          style={{
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            flex: explorerOpen ? "1 1 0" : "0 0 auto",
-            minHeight: 0,
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <button
-              onClick={() => setExplorerOpen((v) => !v)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flex: 1,
-                padding: "6px 10px",
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                textAlign: "left",
-              }}
-            >
-              <ChevronRight size={12} strokeWidth={1.8} style={{ transform: explorerOpen ? "rotate(90deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)", flexShrink: 0 }} aria-hidden="true" />
-              {t("sessionSidebar.explorer")}
-            </button>
-            {explorerOpen && (
-              <Tooltip content={t("sessionSidebar.uploadFilesTitle")} side="top">
-              <button
-                onClick={() => fileExplorerRef.current?.openUploadPicker()}
-                disabled={explorerUploadBusy}
-                title={t("sessionSidebar.uploadFilesTitle")}
-                aria-label={t("sessionSidebar.uploadFiles")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 26, height: 26, padding: 0,
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-dim)",
-                  cursor: explorerUploadBusy ? "default" : "pointer",
-                  borderRadius: "var(--radius-control)",
-                  flexShrink: 0,
-                  opacity: explorerUploadBusy ? 0.6 : 1,
-                  transition: "color var(--dur-fast) var(--ease-out-warm), background var(--dur-fast) var(--ease-out-warm)",
-                }}
-                onMouseEnter={(e) => { if (explorerUploadBusy) return; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { if (explorerUploadBusy) return; e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
-              >
-                <Upload size={13} strokeWidth={2} aria-hidden="true" />
-              </button>
-              </Tooltip>
-            )}
-            <Tooltip content={t("sessionSidebar.refreshExplorer")} side="top">
-            <button
-              aria-label={t("sessionSidebar.refreshExplorer")}
-              onClick={() => {
-                if (onExplorerRefresh) onExplorerRefresh();
-                else setExplorerKey((k) => k + 1);
-              }}
-              title={t("sessionSidebar.refreshExplorer")}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 26, height: 26, padding: 0, marginRight: 6,
-                background: "none",
-                border: "none",
-                color: explorerRefreshing ? "var(--accent)" : "var(--text-dim)",
-                cursor: "pointer",
-                borderRadius: "var(--radius-control)",
-                flexShrink: 0,
-                transition: "color var(--dur-fast) var(--ease-out-warm), background var(--dur-fast) var(--ease-out-warm)",
-              }}
-              onMouseEnter={(e) => { if (explorerRefreshing) return; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "var(--bg-hover)"; }}
-              onMouseLeave={(e) => { if (explorerRefreshing) return; e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
-            >
-              {explorerRefreshing ? (
-                <RefreshCw size={13} strokeWidth={2} aria-hidden="true" className="icon-spin" />
-              ) : (
-                <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
-              )}
-            </button>
-            </Tooltip>
-          </div>
-          {explorerOpen && (
-            <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-              <FileExplorer
-                ref={fileExplorerRef}
-                cwd={selectedCwd ?? selectedCwdProp!}
-                onOpenFile={onOpenFile ?? (() => {})}
-                refreshKey={explorerKey}
-                onAtMention={onAtMention}
-                onAtMentions={onAtMentions}
-                onUploadBusyChange={setExplorerUploadBusy}
-                onRefreshDone={onExplorerRefreshDone}
-              />
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
   validateUploadFileNames,
 } from "@/lib/file-upload";
 import { parseFormDataWithinLimit, RequestBodyTooLargeError } from "@/lib/bounded-form-data";
+import { FileMutationError, mkdirFresh, removePath, renamePath, touchFile } from "@/lib/file-mutations";
 
 const IGNORED_NAMES = new Set([
   "node_modules", ".git", ".next", "dist", "build", "__pycache__",
@@ -144,10 +145,39 @@ export async function POST(
       }
       return NextResponse.json(inspectUploadTargets(directory, fileNames));
     }
+    if (type === "mkdir" || type === "touch") {
+      const targetPath = filePathFromSegments(segments);
+      const allowedRoots = await getAllowedFileRoots();
+      if (!isFilePathAllowed(targetPath, allowedRoots)) {
+        return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+      }
+      const parentDir = path.dirname(targetPath);
+      let parentStat: fs.Stats;
+      try {
+        parentStat = fs.statSync(parentDir);
+      } catch {
+        return NextResponse.json({ error: "Parent directory not found", code: "parent_not_found" }, { status: 404 });
+      }
+      if (!parentStat.isDirectory()) {
+        return NextResponse.json({ error: "Parent is not a directory", code: "parent_not_a_directory" }, { status: 400 });
+      }
+      try {
+        if (type === "mkdir") mkdirFresh(targetPath);
+        else touchFile(targetPath);
+      } catch (error) {
+        if (error instanceof FileMutationError) {
+          return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+        }
+        throw error;
+      }
+      return NextResponse.json({ path: targetPath, type: type === "mkdir" ? "directory" : "file" });
+    }
 
     if (type !== "upload") {
       return NextResponse.json({ error: "Invalid upload request type", code: "invalid_upload_type" }, { status: 400 });
     }
+
+
 
     const strategy = parseUploadConflictStrategy(request.nextUrl.searchParams.get("conflict"));
     if (!strategy) {
@@ -602,6 +632,74 @@ export async function GET(
       });
 
     return NextResponse.json({ entries, path: filePath });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  try {
+    const { path: segments } = await params;
+    const filePath = filePathFromSegments(segments);
+    const allowedRoots = await getAllowedFileRoots();
+    if (!isFilePathAllowed(filePath, allowedRoots)) {
+      return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+    }
+    if (!isExistingFilePathAllowed(filePath, allowedRoots)) {
+      return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+    }
+    const recursive = request.nextUrl.searchParams.get("recursive") === "true";
+    try {
+      removePath(filePath, { recursive });
+    } catch (error) {
+      if (error instanceof FileMutationError) {
+        const status = error.code === "not_found" ? 404 : error.code === "directory_not_empty" ? 409 : 400;
+        return NextResponse.json({ error: error.message, code: error.code }, { status });
+      }
+      throw error;
+    }
+    return NextResponse.json({ deleted: true, path: filePath });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  try {
+    const { path: segments } = await params;
+    const sourcePath = filePathFromSegments(segments);
+    const body = await request.json().catch(() => null) as { name?: unknown } | null;
+    const newName = typeof body?.name === "string" ? body.name.trim() : "";
+    if (!newName || newName.includes("/") || newName.includes("\\") || newName === "." || newName === "..") {
+      return NextResponse.json({ error: "Invalid new name", code: "invalid_name" }, { status: 400 });
+    }
+    const destination = path.join(path.dirname(sourcePath), newName);
+    const allowedRoots = await getAllowedFileRoots();
+    if (!isFilePathAllowed(sourcePath, allowedRoots)) {
+      return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+    }
+    if (!isExistingFilePathAllowed(sourcePath, allowedRoots)) {
+      return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+    }
+    if (!isFilePathAllowed(destination, allowedRoots)) {
+      return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+    }
+    try {
+      renamePath(sourcePath, destination);
+    } catch (error) {
+      if (error instanceof FileMutationError) {
+        const status = error.code === "destination_exists" ? 409 : 400;
+        return NextResponse.json({ error: error.message, code: error.code }, { status });
+      }
+      throw error;
+    }
+    return NextResponse.json({ renamed: true, from: sourcePath, to: destination });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

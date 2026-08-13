@@ -7,10 +7,12 @@ import {
   ChevronRight,
   CircleAlert,
   CircleMinus,
+  Copy,
   Download,
   Folder,
   FolderOpen,
   Loader2,
+  RefreshCw,
   TriangleAlert,
   Upload,
   X,
@@ -26,6 +28,9 @@ import {
   normalizeFilePathSlashes,
 } from "@/lib/file-paths";
 import type { GitFileStatus, GitFileStatusKind, GitStatusResponse } from "@/lib/git-types";
+import { copyText } from "@/lib/clipboard";
+import { toast } from "./ui/toast";
+import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuTrigger } from "./ui/context-menu";
 
 interface FileEntry {
   name: string;
@@ -271,28 +276,37 @@ function TreeNode({
 
   const mentionLabel = t("fileExplorer.insertPathIntoChat");
   const downloadLabel = t("fileExplorer.downloadFile");
+  const copyNameLabel = t("rightSidebar.contextMenu.copyName");
+  const copyPathLabel = t("rightSidebar.contextMenu.copyPath");
+  const copyRelativePathLabel = t("rightSidebar.contextMenu.copyRelativePath");
+  const refreshLabel = t("rightSidebar.contextMenu.refresh");
+  const handleCopyName = useCallback(() => { void copyText(node.name); }, [node.name]);
+  const handleCopyPath = useCallback(() => { void copyText(node.fullPath); }, [node.fullPath]);
+  const handleCopyRelative = useCallback(() => { void copyText(getRelativeFilePath(node.fullPath, cwd)); }, [node.fullPath, cwd]);
+  const handleRefresh = useCallback(() => { void loadChildren(true); toast.info(t("rightSidebar.contextMenu.refreshDone")); }, [loadChildren, t]);
 
   return (
-    <div>
-      <div
-        onClick={handleClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          paddingLeft: 8 + depth * 14,
-          paddingRight: 8,
-          height: 24,
-          cursor: "pointer",
-          background: hovered ? "var(--bg-hover)" : "transparent",
-          borderRadius: "var(--radius-control)",
-          userSelect: "none",
-          transition: `background var(--dur-fast) var(--ease-out-warm)`,
-        }}
-      >
+    <ContextMenuRoot>
+      <ContextMenuTrigger>
+        <div
+          onClick={handleClick}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            paddingLeft: 8 + depth * 14,
+            paddingRight: 8,
+            height: 24,
+            cursor: "pointer",
+            background: hovered ? "var(--bg-hover)" : "transparent",
+            borderRadius: "var(--radius-control)",
+            userSelect: "none",
+            transition: `background var(--dur-fast) var(--ease-out-warm)`,
+          }}
+        >
         {node.isDir && (
           <ChevronRight
             size={10}
@@ -436,7 +450,25 @@ function TreeNode({
             </a>
           </Tooltip>
         )}
-      </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem label={copyNameLabel} onClick={handleCopyName} />
+        <ContextMenuItem label={copyPathLabel} onClick={handleCopyPath} />
+        <ContextMenuItem label={copyRelativePathLabel} onClick={handleCopyRelative} />
+        {!node.isDir && (
+          <ContextMenuItem
+            label={downloadLabel}
+            onClick={() => {
+              const a = document.createElement("a");
+              a.href = `/api/files/${encodeFilePathForApi(node.fullPath)}?type=download`;
+              a.download = node.name;
+              a.click();
+            }}
+          />
+        )}
+        <ContextMenuItem label={refreshLabel} onClick={handleRefresh} />
+      </ContextMenuContent>
       {node.isDir && open && (
         <div>
           {children.map((child) => (
@@ -462,7 +494,7 @@ function TreeNode({
           )}
         </div>
       )}
-    </div>
+    </ContextMenuRoot>
   );
 }
 
