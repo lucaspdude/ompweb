@@ -72,6 +72,7 @@ export function RightSidebar({
   }, [widthState]);
 
   const handleSelectTab = useCallback((tab: RightSidebarTab) => {
+    setCustomWidth(null);
     if (tab === activeTab) {
       if (!open) {
         // Re-opening from closed: jump straight to default width so
@@ -104,12 +105,61 @@ export function RightSidebar({
     onOpenChange(false);
   }, [onOpenChange]);
 
+  // Free-drag width: when the user drags the sidebar's left edge we
+  // switch to a custom pixel width (within bounds) so the column can
+  // be sized freely instead of snapping to the three discrete states.
+  // The custom width persists in localStorage; clicking a rail tab
+  // resets it back to the rail's discrete state.
+  const [customWidth, setCustomWidth] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("rocinante:right-sidebar-custom-width");
+      if (stored) {
+        const n = Number.parseInt(stored, 10);
+        if (Number.isFinite(n) && n >= 200 && n <= 1200) setCustomWidth(n);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // The width of the sidebar in pixels. Collapses to the rail-only
+  // 44px when closed; otherwise prefers the user's drag-resized
+  // customWidth (if any) over the discrete widthState.
+  const width = open
+    ? (customWidth != null ? customWidth : WIDTH_BY_STATE[widthState])
+    : WIDTH_BY_STATE.collapsed;
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    if (isMobile) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+    setIsDragging(true);
+    const onMove = (ev: MouseEvent) => {
+      // The sidebar grows to the LEFT of the drag handle, so a
+      // decreasing clientX means a wider sidebar.
+      const next = Math.min(1200, Math.max(200, startWidth - (ev.clientX - startX)));
+      setCustomWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setIsDragging(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [isMobile, width]);
+
   const activeFileTab = fileTabs.find((t) => t.id === activeFileTabId) ?? null;
   // The content panel is visible whenever the sidebar is open AND not
   // collapsed to the rail-only state.
   const showContent = open && widthState !== "collapsed";
-  // Width collapses to rail-only (44px) when the sidebar is closed.
-  const width = open ? WIDTH_BY_STATE[widthState] : WIDTH_BY_STATE.collapsed;
 
   return (
     <aside
@@ -118,6 +168,7 @@ export function RightSidebar({
       data-tab={activeTab}
       data-open={open ? "true" : "false"}
       style={{
+        position: "relative",
         display: isMobile ? (open ? "flex" : "none") : "flex",
         flexDirection: "row",
         flexShrink: 0,
@@ -129,6 +180,21 @@ export function RightSidebar({
         overflow: "hidden",
       }}
     >
+      <div
+        onMouseDown={handleResizeStart}
+        title={t("rightSidebar.resize")}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 5,
+          cursor: isMobile ? "default" : "col-resize",
+          zIndex: 5,
+          background: isDragging ? "var(--accent)" : "transparent",
+          transition: "background var(--dur-fast) var(--ease-out-warm)",
+        }}
+      />
       <RightSidebarRail
         activeTab={activeTab}
         widthState={widthState}

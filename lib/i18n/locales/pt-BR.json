@@ -1098,5 +1098,6 @@
   "onboarding.common.detecting": "Detectando…",
   "onboarding.common.required": "Obrigatório",
   "onboarding.common.optional": "Opcional",
-  "onboarding.common.runSetupWizard": "Rodar setup wizard"
+  "onboarding.common.runSetupWizard": "Rodar setup wizard",
+  "rightSidebar.resize": "Arraste para redimensionar"
 }
