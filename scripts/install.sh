@@ -157,8 +157,14 @@ ensure_rocinante() {
   cd "${SHARE_DIR}"
 
   log "Installing npm dependencies (this can take a minute on first run)…"
-  if ! npm ci --omit=dev --ignore-scripts 2>/dev/null \
-   && ! npm install --omit=dev --ignore-scripts; then
+  # Install devDependencies too: `next build` needs @tailwindcss/postcss +
+  # typescript + the other devDependencies. Without them the build aborts
+  # with "Cannot find module '@tailwindcss/postcss'" and the install script
+  # silently falls back to dev mode (which then can't render UI on a
+  # loopback install). The font fetch is still network-dependent and falls
+  # back to local via the existing dev-fallback branch.
+  if ! npm ci --ignore-scripts 2>/dev/null \
+   && ! npm install --ignore-scripts; then
     fail "npm install failed in ${SHARE_DIR}."
   fi
 
