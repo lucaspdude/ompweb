@@ -216,6 +216,8 @@ function TreeNode({
   changedDirectoryPaths,
   onRequestDelete,
   onRequestRename,
+  onRequestNewFile,
+  onRequestNewFolder,
 }: {
   node: FileNode;
   depth: number;
@@ -230,6 +232,8 @@ function TreeNode({
   changedDirectoryPaths: Set<string>;
   onRequestDelete?: (path: string, name: string, isDir: boolean) => void;
   onRequestRename?: (path: string, name: string) => void;
+  onRequestNewFile?: (dir: string) => void;
+  onRequestNewFolder?: (dir: string) => void;
 }) {
   const { t } = useI18n();
   const open = expandedPaths.has(node.fullPath);
@@ -288,12 +292,17 @@ function TreeNode({
   const refreshLabel = t("rightSidebar.contextMenu.refresh");
   const renameLabel = t("rightSidebar.contextMenu.rename");
   const deleteLabel = t("rightSidebar.contextMenu.delete");
+  const newFileLabel = t("rightSidebar.contextMenu.newFile");
+  const newFolderLabel = t("rightSidebar.contextMenu.newFolder");
   const handleCopyName = useCallback(() => { void copyText(node.name); }, [node.name]);
   const handleCopyPath = useCallback(() => { void copyText(node.fullPath); }, [node.fullPath]);
   const handleCopyRelative = useCallback(() => { void copyText(getRelativeFilePath(node.fullPath, cwd)); }, [node.fullPath, cwd]);
   const handleRefresh = useCallback(() => { void loadChildren(true); toast.info(t("rightSidebar.contextMenu.refreshDone")); }, [loadChildren, t]);
   const handleDelete = useCallback(() => { onRequestDelete?.(node.fullPath, node.name, node.isDir); }, [onRequestDelete, node.fullPath, node.name, node.isDir]);
   const handleRename = useCallback(() => { onRequestRename?.(node.fullPath, node.name); }, [onRequestRename, node.fullPath, node.name]);
+  const parentDir = node.isDir ? node.fullPath : cwd;
+  const handleNewFile = useCallback(() => { onRequestNewFile?.(parentDir); }, [onRequestNewFile, parentDir]);
+  const handleNewFolder = useCallback(() => { onRequestNewFolder?.(parentDir); }, [onRequestNewFolder, parentDir]);
 
   return (
     <ContextMenuRoot>
@@ -477,6 +486,9 @@ function TreeNode({
             }}
           />
         )}
+        <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} aria-hidden="true" />
+        {onRequestNewFile && <ContextMenuItem label={newFileLabel} onClick={handleNewFile} />}
+        {onRequestNewFolder && <ContextMenuItem label={newFolderLabel} onClick={handleNewFolder} />}
         <ContextMenuItem label={refreshLabel} onClick={handleRefresh} />
         <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} aria-hidden="true" />
         {onRequestRename && <ContextMenuItem label={renameLabel} onClick={handleRename} />}
@@ -500,6 +512,8 @@ function TreeNode({
               changedDirectoryPaths={changedDirectoryPaths}
               onRequestDelete={onRequestDelete}
               onRequestRename={onRequestRename}
+              onRequestNewFile={onRequestNewFile}
+              onRequestNewFolder={onRequestNewFolder}
             />
           ))}
           {children.length === 0 && loaded && (
@@ -545,6 +559,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   const [renameValue, setRenameValue] = useState("");
   const [renameBusy, setRenameBusy] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
+  // Phase 2: create new file/folder state. Operates on a parent directory.
+  const [createTarget, setCreateTarget] = useState<{ dir: string; kind: "file" | "folder" } | null>(null);
+  const [createValue, setCreateValue] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleRequestDelete = useCallback((path: string, name: string, isDir: boolean) => {
     setDeleteTarget({ path, name, isDir });
@@ -581,6 +600,50 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
       setDeleteBusy(false);
     }
   }, [deleteTarget, refreshAfterMutation]);
+
+  const handleRequestNewFile = useCallback((dir: string) => {
+    setCreateTarget({ dir, kind: "file" });
+    setCreateValue("");
+    setCreateError(null);
+  }, []);
+
+  const handleRequestNewFolder = useCallback((dir: string) => {
+    setCreateTarget({ dir, kind: "folder" });
+    setCreateValue("");
+    setCreateError(null);
+  }, []);
+
+  const handleConfirmCreate = useCallback(async () => {
+    if (!createTarget) return;
+    const name = createValue.trim();
+    if (!name) {
+      setCreateError(translate("fileExplorer.nameRequired"));
+      return;
+    }
+    if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+      setCreateError(translate("fileExplorer.invalidName"));
+      return;
+    }
+    setCreateBusy(true);
+    setCreateError(null);
+    try {
+      const targetPath = joinFilePath(createTarget.dir, name);
+      const res = await fetch(`/api/files/${encodeFilePathForApi(targetPath)}?type=${createTarget.kind === "folder" ? "mkdir" : "touch"}`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = typeof body?.error === "string" ? body.error : `HTTP ${res.status}`;
+        setCreateError(msg);
+        return;
+      }
+      toast.success(translate(createTarget.kind === "folder" ? "fileExplorer.folderCreated" : "fileExplorer.fileCreated", { name }));
+      setCreateTarget(null);
+      refreshAfterMutation();
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCreateBusy(false);
+    }
+  }, [createTarget, createValue, refreshAfterMutation]);
 
   const handleConfirmRename = useCallback(async () => {
     if (!renameTarget) return;
@@ -925,6 +988,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               changedDirectoryPaths={changedDirectoryPaths}
               onRequestDelete={handleRequestDelete}
               onRequestRename={handleRequestRename}
+              onRequestNewFile={handleRequestNewFile}
+              onRequestNewFolder={handleRequestNewFolder}
             />
           ))
         )}
@@ -948,6 +1013,35 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
         busy={deleteBusy}
         onConfirm={handleConfirmDelete}
       />
+
+      <Dialog open={createTarget !== null} onOpenChange={(open) => { if (!open) setCreateTarget(null); }}>
+        <DialogContent
+          ariaLabel={createTarget?.kind === "folder" ? translate("rightSidebar.contextMenu.newFolder") : translate("rightSidebar.contextMenu.newFile")}
+          style={{ width: 420, maxWidth: "min(92vw, 420px)", padding: 22 }}
+        >
+          <DialogTitle>{createTarget?.kind === "folder" ? translate("rightSidebar.contextMenu.newFolder") : translate("rightSidebar.contextMenu.newFile")}</DialogTitle>
+          <div style={{ height: 8 }} />
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>{createTarget?.dir}</p>
+          <TextInput
+            value={createValue}
+            onChange={(v) => { setCreateValue(v); setCreateError(null); }}
+            placeholder={translate("fileExplorer.newNamePlaceholder")}
+            error={createError}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleConfirmCreate();
+              if (e.key === "Escape") setCreateTarget(null);
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+            <button type="button" onClick={() => setCreateTarget(null)} style={{ padding: "6px 14px", background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", color: "var(--text-muted)", cursor: "pointer", fontSize: 13 }}>
+              {translate("common.cancel")}
+            </button>
+            <button type="button" disabled={createBusy} onClick={() => void handleConfirmCreate()} style={{ padding: "6px 14px", background: "var(--accent)", border: "none", borderRadius: "var(--radius-control)", color: "white", cursor: createBusy ? "wait" : "pointer", fontSize: 13, fontWeight: 600, opacity: createBusy ? 0.7 : 1 }}>
+              {translate("common.save")}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={renameTarget !== null} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
         <DialogContent

@@ -1026,5 +1026,10 @@
   "fileExplorer.renameDone": "Renomeado para {name}",
   "common.delete": "Excluir",
   "common.cancel": "Cancelar",
-  "common.save": "Salvar"
+  "common.save": "Salvar",
+  "fileExplorer.fileCreated": "{name} criado",
+  "fileExplorer.folderCreated": "Pasta {name} criada",
+  "fileExplorer.nameRequired": "O nome é obrigatório",
+  "fileExplorer.invalidName": "O nome não pode conter / ou \\",
+  "fileExplorer.newNamePlaceholder": "Nome do arquivo ou pasta"
 }

@@ -1026,5 +1026,10 @@
   "fileExplorer.renameDone": "Renamed to {name}",
   "common.delete": "Delete",
   "common.cancel": "Cancel",
-  "common.save": "Save"
+  "common.save": "Save",
+  "fileExplorer.fileCreated": "Created {name}",
+  "fileExplorer.folderCreated": "Created folder {name}",
+  "fileExplorer.nameRequired": "Name is required",
+  "fileExplorer.invalidName": "Name cannot contain / or \\",
+  "fileExplorer.newNamePlaceholder": "File or folder name"
 }
