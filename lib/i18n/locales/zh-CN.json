@@ -1098,5 +1098,6 @@
   "onboarding.common.detecting": "Detecting…",
   "onboarding.common.required": "Required",
   "onboarding.common.optional": "Optional",
-  "onboarding.common.runSetupWizard": "运行设置向导"
+  "onboarding.common.runSetupWizard": "运行设置向导",
+  "rightSidebar.resize": "Drag to resize"
 }
