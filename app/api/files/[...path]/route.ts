@@ -37,6 +37,7 @@ const IGNORED_NAMES = new Set([
 const IGNORED_SUFFIXES = [".pyc"];
 
 const FILE_REQUEST_TYPES = ["list", "read", "download", "meta", "preview", "watch"] as const;
+const POST_REQUEST_TYPES = new Set(["upload", "upload-check", "mkdir", "touch"]);
 type FileRequestType = typeof FILE_REQUEST_TYPES[number];
 const FILE_REQUEST_TYPE_SET = new Set<string>(FILE_REQUEST_TYPES);
 const MAX_UPLOAD_FILE_BYTES = 25 * 1024 * 1024;
@@ -128,10 +129,46 @@ export async function POST(
 ) {
   try {
     const { path: segments } = await params;
+    const type = request.nextUrl.searchParams.get("type") ?? "upload";
+
+    // mkdir / touch operate on a target path whose parent must exist; the
+    // target itself may not exist yet. We deliberately skip getUploadDirectory
+    // (which would reject non-existent paths) and authorize directly.
+    if (type === "mkdir" || type === "touch") {
+      const targetPath = filePathFromSegments(segments);
+      const allowedRoots = await getAllowedFileRoots();
+      if (!isFilePathAllowed(targetPath, allowedRoots)) {
+        return NextResponse.json({ error: "Access denied", code: "access_denied" }, { status: 403 });
+      }
+      const parentDir = path.dirname(targetPath);
+      let parentStat: fs.Stats;
+      try {
+        parentStat = fs.statSync(parentDir);
+      } catch {
+        return NextResponse.json({ error: "Parent directory not found", code: "parent_not_found" }, { status: 404 });
+      }
+      if (!parentStat.isDirectory()) {
+        return NextResponse.json({ error: "Parent is not a directory", code: "parent_not_a_directory" }, { status: 400 });
+      }
+      try {
+        if (type === "mkdir") mkdirFresh(targetPath);
+        else touchFile(targetPath);
+      } catch (error) {
+        if (error instanceof FileMutationError) {
+          return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+        }
+        throw error;
+      }
+      return NextResponse.json({ path: targetPath, type: type === "mkdir" ? "directory" : "file" });
+    }
+
+    if (!POST_REQUEST_TYPES.has(type)) {
+      return NextResponse.json({ error: "Invalid request type", code: "invalid_request_type" }, { status: 400 });
+    }
+
     const uploadDirectory = await getUploadDirectory(segments);
     if ("response" in uploadDirectory) return uploadDirectory.response;
     const { directory } = uploadDirectory;
-    const type = request.nextUrl.searchParams.get("type") ?? "upload";
 
     if (type === "upload-check") {
       const body = await request.json().catch(() => null) as { fileNames?: unknown } | null;
@@ -171,10 +208,6 @@ export async function POST(
         throw error;
       }
       return NextResponse.json({ path: targetPath, type: type === "mkdir" ? "directory" : "file" });
-    }
-
-    if (type !== "upload") {
-      return NextResponse.json({ error: "Invalid upload request type", code: "invalid_upload_type" }, { status: 400 });
     }
 
 

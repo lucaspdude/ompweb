@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { getFileIcon } from "./FileIcons";
 import { Tooltip } from "./ui/primitives";
+import { ConfirmDialog, TextInput } from "./ui/field";
+import { Dialog, DialogContent, DialogTitle } from "./ui/primitives";
 import { translate, useI18n } from "@/lib/i18n";
 import {
   encodeFilePathForApi,
@@ -212,6 +214,8 @@ function TreeNode({
   highlightedPaths,
   gitStatusByPath,
   changedDirectoryPaths,
+  onRequestDelete,
+  onRequestRename,
 }: {
   node: FileNode;
   depth: number;
@@ -224,6 +228,8 @@ function TreeNode({
   highlightedPaths: Set<string>;
   gitStatusByPath: Map<string, GitFileStatus>;
   changedDirectoryPaths: Set<string>;
+  onRequestDelete?: (path: string, name: string, isDir: boolean) => void;
+  onRequestRename?: (path: string, name: string) => void;
 }) {
   const { t } = useI18n();
   const open = expandedPaths.has(node.fullPath);
@@ -280,10 +286,14 @@ function TreeNode({
   const copyPathLabel = t("rightSidebar.contextMenu.copyPath");
   const copyRelativePathLabel = t("rightSidebar.contextMenu.copyRelativePath");
   const refreshLabel = t("rightSidebar.contextMenu.refresh");
+  const renameLabel = t("rightSidebar.contextMenu.rename");
+  const deleteLabel = t("rightSidebar.contextMenu.delete");
   const handleCopyName = useCallback(() => { void copyText(node.name); }, [node.name]);
   const handleCopyPath = useCallback(() => { void copyText(node.fullPath); }, [node.fullPath]);
   const handleCopyRelative = useCallback(() => { void copyText(getRelativeFilePath(node.fullPath, cwd)); }, [node.fullPath, cwd]);
   const handleRefresh = useCallback(() => { void loadChildren(true); toast.info(t("rightSidebar.contextMenu.refreshDone")); }, [loadChildren, t]);
+  const handleDelete = useCallback(() => { onRequestDelete?.(node.fullPath, node.name, node.isDir); }, [onRequestDelete, node.fullPath, node.name, node.isDir]);
+  const handleRename = useCallback(() => { onRequestRename?.(node.fullPath, node.name); }, [onRequestRename, node.fullPath, node.name]);
 
   return (
     <ContextMenuRoot>
@@ -468,6 +478,9 @@ function TreeNode({
           />
         )}
         <ContextMenuItem label={refreshLabel} onClick={handleRefresh} />
+        <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} aria-hidden="true" />
+        {onRequestRename && <ContextMenuItem label={renameLabel} onClick={handleRename} />}
+        {onRequestDelete && <ContextMenuItem label={deleteLabel} onClick={handleDelete} />}
       </ContextMenuContent>
       {node.isDir && open && (
         <div>
@@ -485,6 +498,8 @@ function TreeNode({
               highlightedPaths={highlightedPaths}
               gitStatusByPath={gitStatusByPath}
               changedDirectoryPaths={changedDirectoryPaths}
+              onRequestDelete={onRequestDelete}
+              onRequestRename={onRequestRename}
             />
           ))}
           {children.length === 0 && loaded && (
@@ -523,6 +538,80 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
   const prevCwdRef = useRef<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const refreshToken = `${refreshKey ?? 0}:${treeRefreshKey}`;
+  // Phase 1.5: delete + rename state for the TreeNode context menu.
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string; isDir: boolean } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ path: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const handleRequestDelete = useCallback((path: string, name: string, isDir: boolean) => {
+    setDeleteTarget({ path, name, isDir });
+  }, []);
+
+  const handleRequestRename = useCallback((path: string, name: string) => {
+    setRenameTarget({ path, name });
+    setRenameValue(name);
+    setRenameError(null);
+  }, []);
+
+  const refreshAfterMutation = useCallback(() => {
+    setTreeRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    try {
+      const url = `/api/files/${encodeFilePathForApi(deleteTarget.path)}${deleteTarget.isDir ? "?recursive=true" : ""}`;
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = typeof body?.error === "string" ? body.error : `HTTP ${res.status}`;
+        toast.error(translate("rightSidebar.deleteFailed", { error: msg }));
+        return;
+      }
+      toast.success(translate("fileExplorer.deleteDone", { name: deleteTarget.name }));
+      setDeleteTarget(null);
+      refreshAfterMutation();
+    } catch (e) {
+      toast.error(translate("rightSidebar.deleteFailed", { error: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [deleteTarget, refreshAfterMutation]);
+
+  const handleConfirmRename = useCallback(async () => {
+    if (!renameTarget) return;
+    const newName = renameValue.trim();
+    if (!newName || newName === renameTarget.name) {
+      setRenameTarget(null);
+      return;
+    }
+    setRenameBusy(true);
+    setRenameError(null);
+    try {
+      const res = await fetch(`/api/files/${encodeFilePathForApi(renameTarget.path)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = typeof body?.error === "string" ? body.error : `HTTP ${res.status}`;
+        setRenameError(msg);
+        return;
+      }
+      toast.success(translate("fileExplorer.renameDone", { name: newName }));
+      setRenameTarget(null);
+      refreshAfterMutation();
+    } catch (e) {
+      setRenameError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRenameBusy(false);
+    }
+  }, [renameTarget, renameValue, refreshAfterMutation]);
   const uploadBusy = uploadPhase !== "idle";
 
   const gitStatusByPath = useMemo(() => new Map(
@@ -834,6 +923,8 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
               highlightedPaths={highlightedPaths}
               gitStatusByPath={gitStatusByPath}
               changedDirectoryPaths={changedDirectoryPaths}
+              onRequestDelete={handleRequestDelete}
+              onRequestRename={handleRequestRename}
             />
           ))
         )}
@@ -843,6 +934,60 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(function FileE
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={translate("rightSidebar.deleteConfirm.title")}
+        description={deleteTarget?.isDir
+          ? translate("rightSidebar.deleteConfirm.recursive", { name: deleteTarget.name })
+          : translate("rightSidebar.deleteConfirm.body", { name: deleteTarget?.name ?? "" })}
+        confirmLabel={translate("common.delete")}
+        cancelLabel={translate("common.cancel")}
+        danger
+        busy={deleteBusy}
+        onConfirm={handleConfirmDelete}
+      />
+
+      <Dialog open={renameTarget !== null} onOpenChange={(open) => { if (!open) setRenameTarget(null); }}>
+        <DialogContent
+          ariaLabel={translate("rightSidebar.contextMenu.rename")}
+          style={{ width: 420, maxWidth: "min(92vw, 420px)", padding: 22 }}
+        >
+          <DialogTitle>{translate("rightSidebar.contextMenu.rename")}</DialogTitle>
+          <div style={{ height: 8 }} />
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>
+            {renameTarget?.path}
+          </p>
+          <TextInput
+            value={renameValue}
+            onChange={(v) => { setRenameValue(v); setRenameError(null); }}
+            placeholder={translate("rightSidebar.renamePrompt")}
+            error={renameError}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleConfirmRename();
+              if (e.key === "Escape") setRenameTarget(null);
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+            <button
+              type="button"
+              onClick={() => setRenameTarget(null)}
+              style={{ padding: "6px 14px", background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-control)", color: "var(--text-muted)", cursor: "pointer", fontSize: 13 }}
+            >
+              {translate("common.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={renameBusy}
+              onClick={() => void handleConfirmRename()}
+              style={{ padding: "6px 14px", background: "var(--accent)", border: "none", borderRadius: "var(--radius-control)", color: "white", cursor: renameBusy ? "wait" : "pointer", fontSize: 13, fontWeight: 600, opacity: renameBusy ? 0.7 : 1 }}
+            >
+              {translate("common.save")}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
