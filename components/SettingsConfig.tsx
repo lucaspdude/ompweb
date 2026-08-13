@@ -202,7 +202,20 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
       <DialogContent ariaLabel={t("settings.title")} style={{ width: isMobile ? "calc(100vw - 16px)" : 860, maxWidth: "calc(100vw - 16px)", height: isMobile ? "calc(100dvh - 16px)" : "78vh", maxHeight: "calc(100dvh - 16px)", padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
           <DialogTitle style={{ fontSize: 16, margin: 0 }}>{t("settings.title")}</DialogTitle>
-          <button type="button" onClick={onClose} aria-label={t("settings.close")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("rocinante:open-onboarding-wizard"));
+                }
+              }}
+              style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", borderRadius: "var(--radius-control)", padding: "4px 10px", fontSize: 12, cursor: "pointer" }}
+            >
+              {t("onboarding.common.runSetupWizard")}
+            </button>
+            <button type="button" onClick={onClose} aria-label={t("settings.close")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          </div>
         </header>
         <SettingsTabs active={activeTab} onSelect={onSelectTab} workspaceReady={workspaceReady} />
         <div role="tabpanel" id="settings-panel-general" aria-labelledby="settings-tab-general" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
