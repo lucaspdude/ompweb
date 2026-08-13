@@ -6,19 +6,19 @@ import { Dialog, DialogContent, DialogTitle } from "./ui/primitives";
 import { Button } from "./ui/button";
 import { toast } from "./ui/toast";
 import { OnboardingStepper } from "./OnboardingStepper";
-import { OnboardingOmpStep } from "./OnboardingOmpStep";
-import { OnboardingAgentDirStep } from "./OnboardingAgentDirStep";
 import { OnboardingProvidersStep } from "./OnboardingProvidersStep";
 import { OnboardingModelStep } from "./OnboardingModelStep";
 import { OnboardingDoneStep } from "./OnboardingDoneStep";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
-export type OnboardingStepIndex = 0 | 1 | 2 | 3 | 4 | 5;
+// The flow now has 4 steps instead of 6. The omp and agentDir steps were
+// removed because the install script (scripts/install.sh) automatically
+// installs omp and seeds ~/.omp/agent — those steps were redundant on
+// first-run AND on wizard re-runs.
+export type OnboardingStepIndex = 0 | 1 | 2 | 3;
 
 const STEP_LABELS = [
   "onboarding.steps.welcome",
-  "onboarding.steps.omp",
-  "onboarding.steps.agentDir",
   "onboarding.steps.providers",
   "onboarding.steps.model",
   "onboarding.steps.done",
@@ -32,16 +32,13 @@ function loadLastCompletedStep(): number {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return 0;
     const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 0 && n <= 5 ? n : 0;
+    return Number.isFinite(n) && n >= 0 && n <= 3 ? n : 0;
   } catch {
     return 0;
   }
 }
 
 interface Props {
-  /** When true, the modal acts as a setup wizard (skip is allowed in all
-   * steps). When false, the modal is BLOCKING — only the "Required" steps
-   * (1-4) can be advanced; the Welcome and Done steps are kept minimal. */
   wizardMode: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +55,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
   useEffect(() => {
     if (open) {
       const last = loadLastCompletedStep();
-      setStep(Math.min(last + 1, 5) as OnboardingStepIndex);
+      setStep(Math.min(last + 1, 3) as OnboardingStepIndex);
     }
   }, [open]);
 
@@ -71,7 +68,7 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
 
   const advance = useCallback(() => {
     setStep((s) => {
-      const next = Math.min(s + 1, 5) as OnboardingStepIndex;
+      const next = Math.min(s + 1, 3) as OnboardingStepIndex;
       persistStep(s);
       return next;
     });
@@ -82,32 +79,67 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
   }, []);
 
   const handleFinish = useCallback(() => {
-    persistStep(5);
+    persistStep(3);
     onOpenChange(false);
     onFinished?.();
   }, [persistStep, onOpenChange, onFinished]);
 
   const handleSkipAll = useCallback(() => {
     setSkipConfirmOpen(false);
-    persistStep(5);
+    persistStep(3);
     onOpenChange(false);
     onFinished?.();
   }, [persistStep, onOpenChange, onFinished]);
 
   return (
     <>
-      <Dialog open={open} onOpenChange={() => { /* no-op; controlled by onOpenChange via close action */ }}>
+      <Dialog open={open} onOpenChange={() => { /* no-op; controlled via close action */ }}>
         <DialogContent
           ariaLabel={t("onboarding.welcome.title")}
-          style={{ width: 720, maxWidth: "min(94vw, 720px)", padding: 0, overflow: "hidden" }}
+          style={{
+            width: 900,
+            maxWidth: "min(94vw, 900px)",
+            height: "min(82vh, 720px)",
+            maxHeight: "min(94vh, 720px)",
+            padding: 0,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
         >
-          <div style={{ padding: "20px 28px 0" }}>
+          {/*
+            Fixed header — the Stepper stays visible at the top while the
+            user scrolls long content (provider list, model list, etc.).
+           */}
+          <header
+            style={{
+              flexShrink: 0,
+              padding: "20px 28px 16px",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
             <OnboardingStepper
               steps={STEP_LABELS.map((key) => t(key))}
               current={step}
             />
-          </div>
-          <div style={{ padding: "16px 28px 24px", minHeight: 320 }}>
+          </header>
+
+          {/*
+            Scrollable content area. Each step renders its own layout
+            inside this flex-1 + overflow:auto container, so providers
+            with long lists and the model picker both stay usable
+            without overflowing the dialog.
+           */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              padding: "20px 28px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             {step === 0 && (
               <WelcomeStep
                 onStart={advance}
@@ -115,44 +147,23 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
               />
             )}
             {step === 1 && (
-              <OnboardingOmpStep
-                status={status}
-                onRefresh={refresh}
-                onNext={advance}
-                onBack={back}
-              />
-            )}
-            {step === 2 && (
-              <OnboardingAgentDirStep
-                status={status}
-                onRefresh={refresh}
-                onNext={advance}
-                onBack={back}
-              />
-            )}
-            {step === 3 && (
               <OnboardingProvidersStep
                 status={status}
                 onRefresh={refresh}
-                onNext={advance}
-                onBack={back}
               />
             )}
-            {step === 4 && (
+            {step === 2 && (
               <OnboardingModelStep
                 status={status}
                 onRefresh={refresh}
-                onNext={advance}
-                onBack={back}
               />
             )}
-            {step === 5 && (
+            {step === 3 && (
               <OnboardingDoneStep
                 onFinish={handleFinish}
                 onOpenSettings={() => {
                   onOpenChange(false);
                   onFinished?.();
-                  // Open Settings — dispatch a custom event AppShell listens for.
                   if (typeof window !== "undefined") {
                     window.dispatchEvent(new CustomEvent("rocinante:open-settings"));
                   }
@@ -160,6 +171,55 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
               />
             )}
           </div>
+
+          {/*
+            Fixed footer — the action buttons (Back / Skip / Next / Done)
+            stay anchored at the bottom regardless of content scroll.
+           */}
+          <footer
+            style={{
+              flexShrink: 0,
+              padding: "12px 28px 16px",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {step > 0 && step < 3 ? (
+              <Button variant="secondary" onClick={back}>
+                {t("onboarding.common.back")}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={wizardMode ? handleSkipAll : () => setSkipConfirmOpen(true)}
+              >
+                {step === 0 ? t("onboarding.welcome.skip") : t("onboarding.common.skip")}
+              </Button>
+            )}
+            {step === 0 && (
+              <Button variant="primary" onClick={advance}>
+                {t("onboarding.welcome.start")}
+              </Button>
+            )}
+            {step === 1 && (
+              <Button variant="primary" onClick={advance}>
+                {t("onboarding.common.next")}
+              </Button>
+            )}
+            {step === 2 && (
+              <Button variant="primary" onClick={advance}>
+                {t("onboarding.common.next")}
+              </Button>
+            )}
+            {step === 3 && (
+              <Button variant="primary" onClick={handleFinish}>
+                {t("onboarding.done.finish")}
+              </Button>
+            )}
+          </footer>
         </DialogContent>
       </Dialog>
 
@@ -197,15 +257,11 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
 function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   const { t } = useI18n();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h2 style={{ margin: 0, fontSize: 20, color: "var(--text)" }}>{t("onboarding.welcome.title")}</h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, justifyContent: "center", flex: 1, minHeight: 0 }}>
+      <h2 style={{ margin: 0, fontSize: 22, color: "var(--text)" }}>{t("onboarding.welcome.title")}</h2>
       <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--text-muted)" }}>
         {t("onboarding.welcome.subtitle")}
       </p>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-        <Button variant="secondary" onClick={onSkip}>{t("onboarding.welcome.skip")}</Button>
-        <Button variant="primary" onClick={onStart}>{t("onboarding.welcome.start")}</Button>
-      </div>
     </div>
   );
 }
