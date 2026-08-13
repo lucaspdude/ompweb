@@ -15,9 +15,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { translate, useI18n } from "@/lib/i18n";
 import { formatApiError } from "@/lib/i18n/api-error";
+import { OnboardingModal } from "./OnboardingModal";
 import { RightSidebar } from "./RightSidebar";
-
-import { Settings2 } from "lucide-react";
+ import { Settings2 } from "lucide-react";
 import { copyText } from "@/lib/clipboard";
 import { getFileName } from "@/lib/file-paths";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
@@ -117,6 +117,9 @@ export function AppShell() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [advisorEnabled, setAdvisorEnabled] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingWizardMode, setOnboardingWizardMode] = useState(false);
+  const [onboardingNeeds, setOnboardingNeeds] = useState<boolean | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT_WIDTH);
@@ -124,7 +127,6 @@ export function AppShell() {
   useEffect(() => {
     setSidebarWidth(loadSidebarWidth());
   }, [t]);
-  // Persist the committed width (after each change; skipped mid-drag, then
   // written once the drag ends). The first run is skipped so the mount-time
   // default cannot overwrite the stored width before it is loaded.
   const sidebarWidthMountedRef = useRef(false);
@@ -1455,6 +1457,28 @@ export function AppShell() {
       </svg>
     </button>
     {settingsTab && <SettingsConfig activeTab={settingsTab} advisorEnabled={advisorEnabled} onAdvisorChange={handleAdvisorChange} cwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd} sessionId={selectedSession?.id ?? null} onModelsSaved={() => setModelsRefreshKey((k) => k + 1)} onPluginsReloaded={() => setSessionKey((k) => k + 1)} onOmpUpdateAvailabilityChange={setOmpUpdateAvailable} onSelectTab={setSettingsTab} onClose={() => setSettingsTab(null)} />}
+    <OnboardingModal
+      open={onboardingOpen}
+      onOpenChange={setOnboardingOpen}
+      wizardMode={onboardingWizardMode}
+      onFinished={() => { setOnboardingNeeds(false); setOnboardingWizardMode(false); }}
+    />
+    <button
+      type="button"
+      onClick={() => { setOnboardingWizardMode(true); setOnboardingOpen(true); }}
+      title={t("onboarding.common.runSetupWizard")}
+      style={{
+        position: "fixed", top: 0, right: isMobile ? 88 : 80, zIndex: 300,
+        height: isMobile ? 44 : 36,
+        padding: "0 10px",
+        background: "var(--bg-panel)", border: "none", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
+        color: "var(--text-muted)", fontSize: 12, cursor: "pointer", fontWeight: 500,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+    >
+      {t("onboarding.common.runSetupWizard")}
+    </button>
     </ToastProvider>
     </>
   );
