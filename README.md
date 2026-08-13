@@ -35,13 +35,17 @@ Then run `rocinante` to start the UI. It opens on
 [http://127.0.0.1:30178](http://127.0.0.1:30178) by default and the CLI
 tries to open the browser automatically once the server is ready.
 
-**Skip the install script** (manual `npm install` — useful when `omp` is
-already on your `PATH` or you want to pin the package version):
+**Skip the install script** (manual `npm install` — useful when
+`omp` is already on your `PATH`):
 
 ```bash
 npm install -g @lucaspdude/rocinante
 rocinante
 ```
+
+Note: the npm install path is best-effort; the install script is the
+officially supported path because it also installs the upstream
+`omp` binary and seeds `~/.omp/agent/`.
 
 **Options:**
 

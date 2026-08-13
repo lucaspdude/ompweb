@@ -5,9 +5,7 @@ All notable changes to Rocinante are documented here. Versions follow
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
 
-## [Unreleased]
-
-## [0.3.0] — 2026-08-13
+## [0.3.0] — 2026-08-13 (first release)
 
 ### Added
 

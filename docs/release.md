@@ -1,91 +1,73 @@
 # Release Checklist
 
-Each release publishes two artifacts:
+Rocinante is distributed through **GitHub Releases** — the standalone
+install scripts (`scripts/install.sh` and `scripts/install.ps1`)
+download the source tarball of the matching tag from
+`https://github.com/lucaspdude/ompweb/archive/refs/tags/<tag>.tar.gz`,
+build locally, and symlink the launcher. **npm is not in the install
+path.**
 
-- npm package: `@lucaspdude/rocinante`
-- GitHub Release: [lucaspdude/ompweb](https://github.com/lucaspdude/ompweb)
+> **Why not npm?** The original `publish.yml` workflow that published
+> `@lucaspdude/rocinante` to npmjs.org kept failing in CI on
+> `next/font/google` font fetches (`fonts.gstatic.com` is blocked from
+> the GitHub Actions runner). Distributing via GitHub Releases removes
+> the npm publish dependency entirely: the build still happens, just
+> on the user's machine where they have normal internet.
 
-After the initial bootstrap release, publishing is performed by GitHub Actions
-with npm trusted publishing. No npm access token is stored in this repository
-or in GitHub secrets.
+Each release creates:
 
-## Bootstrap the first release
+- **GitHub Release** (auto-archives the source for every tag)
+- **Git tag** (`v<version>`) for the install script to pin to
 
-`@lucaspdude/rocinante` is not registered on npm yet. npm exposes trusted-publisher settings
-only for an existing package, so version `0.3.0` must be published once from a
-reviewed local checkout using the authenticated npm account:
+## One-time setup (already done)
 
-```bash
-npm ci
-npm test
-npm run build
-npm pack --dry-run
-npm publish --access public
-```
+- The `main` branch is protected; PRs land via squash-merge.
+- `.github/workflows/install-smoke.yml` runs the install scripts on
+  ubuntu-latest, macos-latest, and windows-latest in CI. The install
+  scripts tolerate font fetch failures (they fall back to dev mode if
+  `next build` can't reach `fonts.gstatic.com`).
 
-Do not create a tag or GitHub Release for this bootstrap version: npm will
-reject a duplicate version.
-After this succeeds, configure trusted publishing before publishing any later
-version.
+## Release a new version
 
-## One-time trusted-publisher setup
-
-1. In npm, open the `@kahme247/ompweb` package settings and add a **GitHub Actions**
-   trusted publisher with:
-   - Owner: `kahme247`
-   - Repository: `ompweb`
-   - Workflow filename: `publish.yml`
-   - Environment: `npm`
-2. In GitHub, create the `npm` environment for this repository. Add required
-   reviewers if releases need approval.
-3. Confirm Actions are enabled for the repository.
-
-The workflow at `.github/workflows/publish.yml` requests `contents: write` to
-create the GitHub Release and `id-token: write` for trusted publishing. It
-installs npm 11.5.1 or newer, as required for trusted publishing. The OIDC
-permission lets npm verify the GitHub Actions identity and generate provenance
-for the published package.
-
-## Release later versions
-
-Run these from a clean `main` checkout after the release changes are merged.
+From a clean `main` checkout, after the release changes are merged:
 
 ```bash
-npm ci
-npm test
-npm run build
+# 1. Bump the version in package.json. The install scripts pin to a
+#    release tag, so the next user install will pick up the new
+#    version automatically.
 npm version <major|minor|patch>
+
+# 2. Update CHANGELOG.md with the new version's entry. The PR for
+#    that change is what you push and tag.
+
+# 3. Commit + push the version bump (regular feature commits already
+#    merged into main).
 git push origin main --follow-tags
 ```
 
-`npm version` updates `package.json` and `package-lock.json`, creates a commit,
-and creates a `v<version>` tag. Review the generated commit before pushing.
+`npm version` updates `package.json` + `package-lock.json`, creates a
+commit, and creates a `v<version>` tag. **Review the generated commit
+before pushing** (the version bump is a single commit on its own — it
+should not pull in feature changes).
 
-Pushing the tag starts the `Publish npm package` workflow. It checks out that
-immutable tag, verifies the tag matches `package.json`, installs from the
-lockfile, runs tests and the production build, then creates a draft GitHub
-Release with generated notes. It publishes `ompweb` through the configured
-trusted publisher and makes that release public only after npm accepts the
-package. A rerun can safely finish a release if npm has already accepted its
-version.
+Pushing the tag pushes a GitHub Release with the auto-generated source
+tarball at `https://github.com/lucaspdude/ompweb/archive/refs/tags/<tag>.tar.gz`.
 
-## Verify
+The install script reads the latest release via the GitHub API
+(`/repos/lucaspdude/ompweb/releases/latest`) and downloads the source
+tarball, then runs `npm ci` + `npm run build` locally.
 
-```bash
-gh run list --repo kahme247/ompweb --workflow publish.yml --limit 1
-npm view @kahme247/ompweb@<version> version --registry https://registry.npmjs.org/
-npm view @kahme247/ompweb@<version> --json --registry https://registry.npmjs.org/
-```
-
-Confirm the workflow succeeded, the exact package version resolves, and npm
-shows the expected provenance link.
-
+> **Optional: ship a prebuilt tarball.** If installs become too slow
+> (the `next build` step takes ~30s on a typical laptop), a follow-up
+> release can attach a prebuilt artifact (`.next/`, `node_modules/`)
+> directly to the GitHub Release. The install script picks whichever
+> exists. The `release.yml` workflow (TODO) would handle that build.
 
 ## Install (>= 0.3.0)
 
-The recommended install path is a single one-liner. The npm package no
-longer auto-installs `omp` on `npm install -g` (no `postinstall` for
-supply-chain safety — D1).
+The recommended install path is a single one-liner that downloads
+`omp` (via the official oh-my-pi installer) and builds Rocinante
+from the latest GitHub release.
 
 **macOS / Linux:**
 
@@ -101,34 +83,30 @@ Both scripts:
 2. Ensure Node.js >= 22.19.0.
 3. Install `omp` by delegating to `https://omp.sh/install` (the official
    oh-my-pi installer). Skipped if `omp` is already on `PATH`.
-4. Smoke-test `omp --version` (mandatory — see the `install-smoke.yml`
-   workflow for the CI equivalent).
-5. Install `@lucaspdude/rocinante` via `npm install -g --ignore-scripts`.
+4. Smoke-test `omp --version` (mandatory).
+5. Download the Rocinante source tarball of the latest GitHub
+   release (or `ROCINANTE_VERSION=vX.Y.Z` to pin), `npm ci`,
+   `npm run build`, symlink `~/.local/bin/rocinante`.
 6. Print `Run 'rocinante' to start.`
 
-If the user skips the script and runs `npm install -g
-@lucaspdude/rocinante` directly, the launcher detects the missing
-`omp` and prints a hint (the onboarding modal — Phase 2 — is the
-graphical equivalent).
+Pin to a specific version with `ROCINANTE_VERSION=v0.3.0 sh` (or the
+PowerShell equivalent `$env:ROCINANTE_VERSION = "v0.3.0"`).
 
 ## File renames (>= 0.3.0)
 
-- `bin/omp-web.js` → `bin/rocinante.js` (D2). The launcher now probes
-  for `omp` and prints a hint when it's missing, instead of failing
-  silently.
+- `bin/omp-web.js` → `bin/rocinante.js`. The launcher now probes for
+  `omp` and prints a hint when it's missing.
 - New `lib/rocinante/rocinante-cli-core.js` (CJS) holds the omp-probe
-  logic that the launcher requires at install time (no TS transpile).
+  logic the launcher requires at install time (no TS transpile).
 - `lib/rocinante/rocinante-cli.ts` (TS facade) re-exports the CJS
   core with the async `getOmpVersion` and TTL cache.
-- `lib/omp/omp-cli.ts` now re-exports from `lib/rocinante/rocinante-cli`
-  for backward compat (every existing
-  `import { resolveOmpBin } from "@/lib/omp/omp-cli"` call site
-  keeps working).
+- `lib/omp/omp-cli.ts` now re-exports from
+  `lib/rocinante/rocinante-cli` for backward compat.
 
 ## CI
 
-`.github/workflows/install-smoke.yml` runs the install script
-matrix-style on `ubuntu-latest`, `macos-latest`, and `windows-latest`.
-Each job boots the runner, runs the appropriate script, then
-verifies `omp` and `rocinante` are on `PATH` and `package.json#bin`
-points at `bin/rocinante.js`.
+`.github/workflows/install-smoke.yml` runs the install scripts on
+ubuntu-latest, macos-latest, and windows-latest. Each job boots the
+runner, runs the appropriate script, then verifies `omp` and
+`rocinante` are on `PATH` and `package.json#bin` points at
+`bin/ocinante.js`.
