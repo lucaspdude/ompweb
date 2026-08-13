@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { FileViewer } from "./FileViewer";
-import { TabBar, type Tab } from "./TabBar";
+import type { Tab } from "./TabBar";
 import { GitChangesPanel } from "./GitChangesPanel";
 import { RightSidebarRail, type RightSidebarTab, type RightSidebarWidthState } from "./RightSidebarRail";
 
@@ -292,61 +292,61 @@ function FilesTab({
 
   const showFile = !!activeFileTab?.filePath;
   return (
-    <>
-      {fileTabs.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36 }}>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <TabBar
-              tabs={fileTabs}
-              activeTabId={activeFileTabId ?? ""}
-              onSelectTab={onSelectFileTab}
-              onCloseTab={onCloseFileTab}
+    <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "row", minHeight: 0 }}>
+      {/*
+        When a file is open, render the file tree and the file viewer
+        side by side so the user can see both at once. The previous
+        design showed only the viewer (hiding the tree), which the
+        user reported as a UX gap. With no file open, the tree fills
+        the whole space.
+
+        The FileViewer has its own internal header (file name +
+        markdown/source/Pré-visualização + download), so we do not
+        add a separate TabBar above the viewer — the file name
+        already lives inside the viewer's own header. The previous
+        design duplicated the file name in a TabBar above the
+        viewer, which the user flagged as a visual clash.
+
+        The tree column is now a fixed 220px (with min 160 / max
+        280) instead of a 35% percentage. At the default 560px
+        sidebar, 35% was 196px which made the file path column
+        cramped. 220px strikes a balance: enough to read the
+        longest folder name without truncation, leaving the viewer
+        with the majority of the horizontal real estate.
+       */}
+      {showFile && (
+        <div style={{ flex: "0 0 220px", minWidth: 160, maxWidth: 280, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+          <div style={{ flex: 1, overflow: "auto" }}>
+            <FileExplorer
+              ref={fileExplorerRef}
+              cwd={selectedCwd}
+              onOpenFile={onOpenFile}
+              refreshKey={explorerRefreshKey}
             />
           </div>
         </div>
       )}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "row", minHeight: 0 }}>
-        {/*
-          When a file is open, render the file tree and the file viewer
-          side by side so the user can see both at once. The previous
-          design showed only the viewer (hiding the tree), which the
-          user reported as a UX gap. With no file open, the tree fills
-          the whole space.
-         */}
-        {showFile && (
-          <div style={{ flex: "0 0 35%", minWidth: 160, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-            <div style={{ flex: 1, overflow: "auto" }}>
-              <FileExplorer
-                ref={fileExplorerRef}
-                cwd={selectedCwd}
-                onOpenFile={onOpenFile}
-                refreshKey={explorerRefreshKey}
-              />
-            </div>
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {showFile ? (
+          <FileViewer
+            filePath={activeFileTab!.filePath!}
+            cwd={selectedCwd}
+            sourceSessionId={activeFileTab!.sourceSessionId ?? sourceSessionId ?? null}
+            gitRefreshKey={explorerRefreshKey}
+            onMentionLines={onMentionLines}
+            onOpenFile={(filePath) => onOpenFile(filePath, filePath.split("/").pop() || filePath)}
+          />
+        ) : (
+          <div style={{ flex: 1, overflow: "auto" }}>
+            <FileExplorer
+              ref={fileExplorerRef}
+              cwd={selectedCwd}
+              onOpenFile={onOpenFile}
+              refreshKey={explorerRefreshKey}
+            />
           </div>
         )}
-        <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {showFile ? (
-            <FileViewer
-              filePath={activeFileTab!.filePath!}
-              cwd={selectedCwd}
-              sourceSessionId={activeFileTab!.sourceSessionId ?? sourceSessionId ?? null}
-              gitRefreshKey={explorerRefreshKey}
-              onMentionLines={onMentionLines}
-              onOpenFile={(filePath) => onOpenFile(filePath, filePath.split("/").pop() || filePath)}
-            />
-          ) : (
-            <div style={{ flex: 1, overflow: "auto" }}>
-              <FileExplorer
-                ref={fileExplorerRef}
-                cwd={selectedCwd}
-                onOpenFile={onOpenFile}
-                refreshKey={explorerRefreshKey}
-              />
-            </div>
-          )}
-        </div>
       </div>
-    </>
+    </div>
   );
 }
