@@ -13,6 +13,7 @@ const ModelsConfig = dynamic(() => import("./ModelsConfig").then((module) => mod
 const SkillsConfig = dynamic(() => import("./SkillsConfig").then((module) => module.SkillsConfig), { loading: SettingsTabLoading });
 const PluginsConfig = dynamic(() => import("./PluginsConfig").then((module) => module.PluginsConfig), { loading: SettingsTabLoading });
 const McpConfig = dynamic(() => import("./McpConfig").then((module) => module.McpConfig), { loading: SettingsTabLoading });
+const SidebarSettings = dynamic(() => import("./SidebarSettings").then((module) => module.SidebarSettings), { loading: SettingsTabLoading });
 
 type UpdateState = {
   currentVersion: string | null;
@@ -301,6 +302,11 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
           {cwd && visitedTabs.has("plugins") && <div style={{ display: activeTab === "plugins" ? "flex" : "none", height: "100%", minHeight: 0, flexDirection: "column" }}>
             <PluginsConfig embedded cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onPluginsReloaded} />
           </div>}
+          {visitedTabs.has("sidebar") && (
+            <div role="tabpanel" id="settings-panel-sidebar" aria-labelledby="settings-tab-sidebar" style={{ display: activeTab === "sidebar" ? "flex" : "none", height: "100%", minHeight: 0, overflowY: "auto", padding: 20, flexDirection: "column", gap: 14 }}>
+              <SidebarSettings />
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -420,14 +420,35 @@ export interface SessionInfo {
   worktreeBranch?: string;
 }
 
+
 /** A project in the sidebar: an explicitly added directory (registered in the
  *  on-disk registry) or one discovered from existing sessions. Paths are the
- *  canonical projectRoot — worktrees resolve to their main repository. */
+ *  canonical projectRoot — worktrees resolve to their main repository.
+ *
+ *  Custom-projects metadata (name/description/archived/metadata) is read from
+ *  `<root>/.omp/project.json` and surfaced here additively. Fields are
+ *  optional so legacy registry entries without a metadata file keep
+ *  working — the sidebar falls back to `basename(path)` for the label. */
 export interface ManagedProject {
   path: string;
   /** ISO timestamp of the last explicit add; present only for registered
    *  projects and used to order projects without sessions. */
   addedAt?: string;
+  /** Display name from `<root>/.omp/project.json`. Empty when the metadata
+   *  file is absent (legacy registry entries); the sidebar falls back to
+   *  `basename(path)`. Never used to build filesystem paths. */
+  name?: string;
+  /** Free-text description from the metadata file. */
+  description?: string;
+  /** ISO timestamp of the metadata file's first creation. */
+  createdAt?: string;
+  /** ISO timestamp of the metadata file's last update. */
+  updatedAt?: string;
+  /** When true, the project is hidden from the main list and shown under the
+   *  "Arquivados" section (D19). */
+  archived?: boolean;
+  /** Free-form metadata bag from the project.json file. */
+  metadata?: Record<string, unknown>;
 }
 
 export interface SessionContext {
