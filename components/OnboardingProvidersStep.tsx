@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "./ui/button";
 import { toast } from "./ui/toast";
+import { Dialog, DialogContent, DialogTitle } from "./ui/primitives";
 import { OnboardingStatus, OnboardingProvider } from "@/hooks/useOnboardingStatus";
 
 interface Props {
   status: OnboardingStatus | null;
   onRefresh: () => Promise<void>;
-  onNext: () => void;
-  onBack: () => void;
 }
 
 const CORE_IDS = ["anthropic", "openai", "google", "openrouter", "mistral", "xai", "github-copilot", "cursor", "azure", "amazon-bedrock"];
@@ -23,10 +22,24 @@ function groupProvider(p: OnboardingProvider): "core" | "additional" | "local" |
   return "additional";
 }
 
-export function OnboardingProvidersStep({ status, onRefresh, onNext, onBack }: Props) {
+function isLocalProvider(id: string): boolean {
+  return LOCAL_IDS.includes(id);
+}
+
+function isOAuthProvider(p: OnboardingProvider): boolean {
+  return p.auth === "callback";
+}
+
+export function OnboardingProvidersStep({ status, onRefresh }: Props) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // Sub-modal state: when non-null, shows a small dialog to enter either
+  // an API key (for `api-key` providers) or a base URL (for local
+  // providers like ollama).
+  const [pendingInput, setPendingInput] = useState<{ provider: OnboardingProvider; field: "apiKey" | "baseUrl" } | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [inputError, setInputError] = useState<string | null>(null);
 
   const providers = status?.providers ?? [];
   const filtered = useMemo(() => {
@@ -47,26 +60,135 @@ export function OnboardingProvidersStep({ status, onRefresh, onNext, onBack }: P
   const authenticatedCount = providers.filter((p) => p.authenticated).length;
   const canAdvance = authenticatedCount > 0;
 
-  const handleConnect = useCallback(async (providerId: string) => {
-    setBusy(providerId);
-    try {
-      // For OAuth, redirect to the login route (the backend handles the
-      // callback). For API-key, we just navigate to the providers panel.
-      if (providerId === "anthropic" || providerId === "github-copilot" || providerId === "cursor") {
-        window.open(`/api/auth/login/${providerId}`, "_blank", "noopener,noreferrer");
-      } else {
-        // API-key flow: open the providers modal in Settings.
-        window.dispatchEvent(new CustomEvent("rocinante:open-settings", { detail: { tab: "models" } }));
+  // Listen for the CustomEvent AppShell dispatches when omp's OAuth flow
+  // finishes, so the list refreshes without the user having to click
+  // Re-detect. Falls back to a periodic re-detect if the event isn't
+  // fired (older omp builds).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onAuthFinished = () => { void onRefresh(); };
+    window.addEventListener("rocinante:auth-finished", onAuthFinished);
+    return () => window.removeEventListener("rocinante:auth-finished", onAuthFinished);
+  }, [onRefresh]);
+
+  const handleConnect = useCallback((provider: OnboardingProvider) => {
+    setBusy(provider.id);
+    if (isOAuthProvider(provider)) {
+      // Real OAuth round-trip via the existing /api/auth/login/{provider}
+      // route. Opens in a popup so the main window stays interactive;
+      // when the popup closes we re-detect.
+      const popup = window.open(
+        `/api/auth/login/${provider.id}`,
+        `omp-auth-${provider.id}`,
+        "width=520,height=640,menubar=no,toolbar=no,location=no,status=no",
+      );
+      if (!popup) {
+        toast.error(t("onboarding.providers.popupBlocked"));
+        setBusy(null);
+        return;
       }
-      toast.info(t("onboarding.providers.connected"));
+      // Poll for the popup to close, then refresh.
+      const poll = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(poll);
+          setBusy(null);
+          void onRefresh();
+        }
+      }, 500);
+    } else if (isLocalProvider(provider.id)) {
+      // Local providers need a base URL (Ollama, LM Studio, vLLM).
+      setPendingInput({ provider, field: "baseUrl" });
+      setInputValue("http://127.0.0.1:11434/v1");
+      setInputError(null);
+    } else {
+      // API-key providers: collect the key in a sub-modal.
+      setPendingInput({ provider, field: "apiKey" });
+      setInputValue("");
+      setInputError(null);
+    }
+  }, [t, onRefresh]);
+
+  const handleSaveInput = useCallback(async () => {
+    if (!pendingInput) return;
+    if (!inputValue.trim()) {
+      setInputError(t("onboarding.providers.inputRequired"));
+      return;
+    }
+    setBusy(pendingInput.provider.id);
+    try {
+      const url = `/api/auth/api-key/${pendingInput.provider.id}` +
+        (pendingInput.field === "baseUrl" ? `?baseUrl=${encodeURIComponent(inputValue.trim())}` : "");
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: inputValue.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || body.message || `HTTP ${res.status}`);
+      }
+      toast.success(t("onboarding.providers.apiKeySaved"));
+      setPendingInput(null);
+      setInputValue("");
+      setInputError(null);
+      await onRefresh();
+    } catch (e) {
+      setInputError(t("onboarding.providers.apiKeyFailed", { error: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(null);
     }
-  }, [t]);
+  }, [pendingInput, inputValue, t, onRefresh]);
+
+  const renderGroup = (g: "core" | "additional" | "local" | "oauth") => {
+    const list = grouped[g];
+    if (!list || list.length === 0) return null;
+    return (
+      <div key={g}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, marginTop: 4 }}>
+          {t(`onboarding.providers.group.${g}`)}
+        </div>
+        {list.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 10px",
+              borderRadius: "var(--radius-control)",
+              background: p.authenticated ? "var(--bg-subtle)" : "transparent",
+              border: "1px solid var(--border)",
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>{p.name}</div>
+              <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{p.id}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {p.authenticated && (
+                <span style={{ fontSize: 10, color: "var(--status-ok)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--status-ok)" }} />
+                  {t("onboarding.providers.connected")}
+                </span>
+              )}
+              <Button
+                variant={p.authenticated ? "secondary" : "primary"}
+                onClick={() => handleConnect(p)}
+                disabled={busy === p.id}
+              >
+                {p.authenticated ? t("onboarding.providers.reconnectAction") : t("onboarding.providers.connectAction")}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h2 style={{ margin: 0, fontSize: 18, color: "var(--text)" }}>{t("onboarding.providers.title")}</h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+      <h2 style={{ margin: 0, fontSize: 20, color: "var(--text)" }}>{t("onboarding.providers.title")}</h2>
       <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
         {t("onboarding.providers.subtitle")}
       </p>
@@ -82,55 +204,72 @@ export function OnboardingProvidersStep({ status, onRefresh, onNext, onBack }: P
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-control)",
           fontSize: 12,
+          flexShrink: 0,
         }}
       />
-      <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-        {(["core", "additional", "local", "oauth"] as const).map((g) => {
-          const list = grouped[g];
-          if (!list || list.length === 0) return null;
-          return (
-            <div key={g}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-dim)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
-                {t(`onboarding.providers.group.${g}`)}
-              </div>
-              {list.map((p) => (
-                <div key={p.id} style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "6px 8px",
-                  borderRadius: "var(--radius-control)",
-                  background: p.authenticated ? "var(--bg-subtle)" : "transparent",
-                }}>
-                  <div>
-                    <div style={{ fontSize: 13, color: "var(--text)" }}>{p.name}</div>
-                    <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>{p.id}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {p.authenticated && (
-                      <span style={{ fontSize: 10, color: "var(--status-ok)" }}>{t("onboarding.providers.connected")}</span>
-                    )}
-                    <Button variant="secondary" onClick={() => handleConnect(p.id)} disabled={busy === p.id || p.authenticated}>
-                      {p.authenticated ? "✓" : t("onboarding.omp.detectButton")}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+      {providers.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--text-dim)", textAlign: "center", padding: 24 }}>
+          {t("onboarding.providers.noProviders")}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
+          {(["core", "additional", "local", "oauth"] as const).map(renderGroup)}
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+        {t("onboarding.providers.moreInSettings")}
+      </div>
+
+      {/*
+        Sub-modal for collecting an API key or base URL. Renders inside
+        the OnboardingModal (uses the existing Dialog primitive so the
+        backdrop + escape-key handling match the rest of the app).
+       */}
+      <Dialog open={pendingInput !== null} onOpenChange={(open) => { if (!open) { setPendingInput(null); setInputError(null); } }}>
+        <DialogContent
+          ariaLabel={pendingInput ? t(pendingInput.field === "apiKey" ? "onboarding.providers.apiKeyPrompt" : "onboarding.providers.baseUrlPrompt", { name: pendingInput.provider.name }) : ""}
+          style={{ width: 460, maxWidth: "min(94vw, 460px)", padding: 22 }}
+        >
+          <DialogTitle>
+            {pendingInput && t(pendingInput.field === "apiKey" ? "onboarding.providers.apiKeyPrompt" : "onboarding.providers.baseUrlPrompt", { name: pendingInput.provider.name })}
+          </DialogTitle>
+          <div style={{ height: 8 }} />
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-muted)" }}>
+            {pendingInput?.provider.id}
+          </p>
+          <input
+            type={pendingInput?.field === "apiKey" ? "password" : "text"}
+            value={inputValue}
+            onChange={(e) => { setInputValue(e.target.value); setInputError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") void handleSaveInput(); if (e.key === "Escape") setPendingInput(null); }}
+            placeholder={pendingInput?.field === "apiKey" ? t("onboarding.providers.apiKeyPlaceholder") : t("onboarding.providers.baseUrlPlaceholder")}
+            autoFocus
+            style={{
+              width: "100%",
+              padding: "6px 10px",
+              background: "var(--bg)",
+              color: "var(--text)",
+              border: inputError ? "1px solid var(--accent)" : "1px solid var(--border)",
+              borderRadius: "var(--radius-control)",
+              fontSize: 12,
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+          {inputError && (
+            <div style={{ marginTop: 8, fontSize: 11, color: "var(--accent)" }}>
+              {inputError}
             </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div style={{ fontSize: 12, color: "var(--text-dim)", textAlign: "center", padding: 16 }}>
-            {t("onboarding.model.empty")}
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+            <Button variant="secondary" onClick={() => { setPendingInput(null); setInputError(null); }}>
+              {t("onboarding.providers.apiKeyCancel")}
+            </Button>
+            <Button variant="primary" onClick={() => void handleSaveInput()} disabled={busy === pendingInput?.provider.id}>
+              {t("onboarding.providers.apiKeySave")}
+            </Button>
           </div>
-        )}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-        <Button variant="secondary" onClick={onBack}>{t("onboarding.common.back")}</Button>
-        <Button variant="primary" onClick={onNext} disabled={!canAdvance}>
-          {t("onboarding.providers.continueButton", { count: authenticatedCount })}
-        </Button>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
