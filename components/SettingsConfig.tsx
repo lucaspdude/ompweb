@@ -14,6 +14,7 @@ const SkillsConfig = dynamic(() => import("./SkillsConfig").then((module) => mod
 const PluginsConfig = dynamic(() => import("./PluginsConfig").then((module) => module.PluginsConfig), { loading: SettingsTabLoading });
 const McpConfig = dynamic(() => import("./McpConfig").then((module) => module.McpConfig), { loading: SettingsTabLoading });
 const SidebarSettings = dynamic(() => import("./SidebarSettings").then((module) => module.SidebarSettings), { loading: SettingsTabLoading });
+const DeveloperTools = dynamic(() => import("./DeveloperTools").then((module) => module.DeveloperTools), { loading: SettingsTabLoading });
 const SecurityConfig = dynamic(() => import("./SecurityConfig").then((module) => module.SecurityConfig), { loading: SettingsTabLoading });
 
 type UpdateState = {
@@ -316,6 +317,11 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
           {cwd && visitedTabs.has("plugins") && <div role="tabpanel" id="settings-panel-plugins" aria-labelledby="settings-tab-plugins" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "plugins" ? "flex" : "none", flexDirection: "column" }}>
             <PluginsConfig embedded cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onPluginsReloaded} />
           </div>}
+          {visitedTabs.has("developer-tools") && (
+            <div role="tabpanel" id="settings-panel-developer-tools" aria-labelledby="settings-tab-developer-tools" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "developer-tools" ? "flex" : "none", flexDirection: "column" }}>
+              <DeveloperTools />
+            </div>
+          )}
           {visitedTabs.has("security") && (
             <div role="tabpanel" id="settings-panel-security" aria-labelledby="settings-tab-security" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "security" ? "flex" : "none", flexDirection: "column" }}>
               <SecurityConfig />
