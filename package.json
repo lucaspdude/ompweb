@@ -15,10 +15,11 @@
     "node": ">=22.19.0"
   },
   "bin": {
-    "rocinante": "bin/omp-web.js"
+    "rocinante": "bin/rocinante.js"
   },
   "files": [
     "bin",
+    "lib/rocinante",
     ".next",
     "!.next/cache",
     "!.next/dev",

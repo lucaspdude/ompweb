@@ -20,6 +20,24 @@ const { parseLaunchOptions } = require("./omp-web-options");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { isPortAvailable } = require("./port-availability");
 
+// Probe for the upstream `omp` binary before we even start next. Rocinante
+// is a web shell for `omp` (the oh-my-pi agent); without it, live sessions
+// fail. The check is best-effort: we print a hint but still start the
+// server so the user can read the onboarding modal.
+let ompBin = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ompBin = require("../lib/rocinante/rocinante-cli-core.js").findOmpBin();
+} catch (_) {
+  // Core missing or threw — leave ompBin null and fall through to the hint.
+}
+if (!ompBin) {
+  console.error("⚠  omp not found on PATH or in usual install locations.");
+  console.error("   Install it with:    curl -fsSL https://omp.sh/install | sh");
+  console.error("   Or set:             ROCINANTE_OMP_BIN=/path/to/omp");
+  console.error("   Rocinante will start, but live sessions will fail until omp is available.");
+}
+
 const pkgDir = path.join(__dirname, "..");
 const nextDir = path.join(pkgDir, ".next");
 
@@ -50,8 +68,8 @@ if (!fs.existsSync(nextDir)) {
 if (!loopbackHostnames.has(hostname)) {
   console.warn(
     passwordEnabled
-      ? `Warning: ompweb is listening on ${hostname} with Basic Auth over HTTP. Use HTTPS or a trusted VPN to protect the password in transit.`
-      : `Warning: ompweb is listening on ${hostname} without authentication. Only use this on a trusted network.`,
+      ? `Warning: Rocinante is listening on ${hostname} with Basic Auth over HTTP. Use HTTPS or a trusted VPN to protect the password in transit.`
+      : `Warning: Rocinante is listening on ${hostname} without authentication. Only use this on a trusted network.`,
   );
 }
 
@@ -65,7 +83,7 @@ const url = `http://${hostname}:${port}`;
 async function main() {
   if (!await isPortAvailable(port, hostname)) {
     console.error(`Port ${port} on ${hostname} is already in use.`);
-    console.error(`If ompweb is already running, open ${url}. Otherwise, stop the process using it or run: ompweb --port ${Number(port) + 1}`);
+    console.error(`If Rocinante is already running, open ${url}. Otherwise, stop the process using it or run: rocinante --port ${Number(port) + 1}`);
     process.exitCode = 1;
     return;
   }

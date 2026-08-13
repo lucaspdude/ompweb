@@ -1,0 +1,87 @@
+name: install smoke
+
+# Smoke-test the standalone install scripts (scripts/install.sh and
+# scripts/install.ps1) across the three target OSes. The script
+# orchestrates Node, omp, and the Rocinante npm package; each OS gets
+# its own runner.
+#
+# Why this exists:
+#   The install script is the first thing a new user runs. A regression
+#   here blocks every first-run. Running it in CI is cheap (one job
+#   per OS) and catches breakage before release.
+
+on:
+  push:
+    branches: [main, feat/**]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unix:
+    name: install.sh on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      # Pin a release tag so the smoke test is deterministic. Override
+      # with PI_REF=main to test the rolling upstream.
+      PI_REF: ${{ vars.PI_REF || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run install.sh
+        shell: bash
+        env:
+          PI_REF: ${{ env.PI_REF }}
+        run: |
+          set -eux
+          bash scripts/install.sh
+      - name: Smoke-test post-install
+        shell: bash
+        run: |
+          set -eux
+          # The script prepends $HOME/.local/bin to PATH; mirror that for
+          # the smoke checks below.
+          export PATH="$HOME/.local/bin:$PATH"
+          test -x "$(command -v omp)" || (echo "omp not on PATH after install" && exit 1)
+          test -x "$(command -v rocinante)" || (echo "rocinante not on PATH after install" && exit 1)
+          omp --version
+          rocinante --version || true  # --version may not be wired yet
+          # Verify the package.json bin resolves to the renamed file.
+          node -e 'const p=require("./package.json"); if(p.bin.rocinante !== "bin/rocinante.js"){throw new Error("bin field points at "+p.bin.rocinante)}'
+
+  windows:
+    name: install.ps1 on windows-latest
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PI_REF: ${{ vars.PI_REF || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run install.ps1
+        shell: pwsh
+        env:
+          PI_REF: ${{ env.PI_REF }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          & ./scripts/install.ps1
+      - name: Smoke-test post-install
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
+          Get-Command omp | ForEach-Object { & $_.Source --version }
+          Get-Command rocinante | ForEach-Object { & $_.Source --version }
+          node -e 'const p=require("./package.json"); if(p.bin.rocinante !== "bin/rocinante.js"){throw new Error("bin field points at "+p.bin.rocinante)}'
