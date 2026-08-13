@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildAuthCookie, getSecret, isAuthEnabled, safeStringEqual, signToken } from "@/lib/auth-token";
-import { registerSession } from "@/app/api/security/sessions/route";
+import { registerSession } from "@/lib/security-sessions";
 
 export const dynamic = "force-dynamic";
 
