@@ -18,7 +18,11 @@ interface CreateProjectDialogProps {
   onOpenChange: (open: boolean) => void;
   busy: boolean;
   error: string | null;
-  onSubmit: (input: { cwd: string; name: string; description: string }) => void | Promise<void>;
+  onSubmit: (input: { cwd: string; name: string; description: string; gitUrl?: string }) => void | Promise<void>;
+}
+
+function basenameFromUrl(url: string): string {
+  return url.trim().replace(/\.git$/i, "").split("/").pop() ?? "";
 }
 
 function basename(path: string): string {
@@ -39,6 +43,7 @@ export function CreateProjectDialog({
   const [name, setName] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
   const [description, setDescription] = useState("");
+  const [gitUrl, setGitUrl] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const nameFieldId = useId();
@@ -52,13 +57,20 @@ export function CreateProjectDialog({
     setName(basename(folder));
   }, [folder, nameDirty]);
 
-  // Reset state when the dialog closes so the next open starts clean.
+  // When the user pastes/types a git URL, default the folder picker to the
+  // current folder (if any) and the name to the URL's basename.
+  useEffect(() => {
+    const derived = basenameFromUrl(gitUrl);
+    if (!derived) return;
+    if (!nameDirty) setName(derived);
+  }, [gitUrl, nameDirty]);
   useEffect(() => {
     if (open) return;
     setFolder("");
     setName("");
     setNameDirty(false);
     setDescription("");
+    setGitUrl("");
     setPickerOpen(false);
   }, [open]);
 
@@ -74,8 +86,21 @@ export function CreateProjectDialog({
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
-    void onSubmit({ cwd: folder.trim(), name: name.trim(), description: description.trim() });
-  }, [canSubmit, onSubmit, folder, name, description]);
+    const trimmedFolder = folder.trim();
+    const trimmedName = name.trim();
+    // When a git URL is provided, the project folder ends up at the URL's
+    // basename. We append that basename to the parent path so the server
+    // creates exactly the right folder (and clone lands there).
+    const projectCwd = gitUrl.trim() && trimmedFolder
+      ? `${trimmedFolder.replace(/\/+$/, "")}/${trimmedName || basenameFromUrl(gitUrl)}`
+      : trimmedFolder;
+    void onSubmit({
+      cwd: projectCwd,
+      name: trimmedName,
+      description: description.trim(),
+      gitUrl: gitUrl.trim() || undefined,
+    });
+  }, [canSubmit, onSubmit, folder, name, description, gitUrl]);
 
   const submitLabel = useMemo(
     () => (busy ? t("projects.create.submitting") : t("projects.create.submit")),
@@ -180,6 +205,29 @@ export function CreateProjectDialog({
                 {t("projects.create.folderRequired")}
               </span>
             )}
+          </label>
+
+          <label htmlFor="create-git-url" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {t("projects.create.gitUrlLabel")}
+            </span>
+            <input
+              id="create-git-url"
+              type="text"
+              value={gitUrl}
+              onChange={(event) => setGitUrl(event.target.value)}
+              placeholder={t("projects.create.gitUrlPlaceholder")}
+              disabled={busy}
+              style={{
+                padding: "8px 10px",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-control)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: 13,
+                fontFamily: "var(--font-mono)",
+              }}
+            />
           </label>
 
           <label htmlFor={descriptionFieldId} style={{ display: "flex", flexDirection: "column", gap: 6 }}>

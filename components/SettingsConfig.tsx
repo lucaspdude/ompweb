@@ -279,14 +279,14 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
             {message && <p role="status" style={{ margin: "10px 0 0", color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>{message}</p>}
           </section>
           </div>
-          {visitedTabs.has("models") && <div style={{ display: activeTab === "models" ? "flex" : "none", height: "100%", minHeight: 0, flexDirection: "column" }}>
+          {visitedTabs.has("models") && <div role="tabpanel" id="settings-panel-models" aria-labelledby="settings-tab-models" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "models" ? "flex" : "none", flexDirection: "column" }}>
             <ModelsConfig embedded onClose={onClose} onSaved={onModelsSaved} />
           </div>}
-          {visitedTabs.has("mcp") && <div role="tabpanel" id="settings-panel-mcp" aria-labelledby="settings-tab-mcp" style={{ display: activeTab === "mcp" ? "flex" : "none", height: "100%", minHeight: 0, flexDirection: "column", overflowY: "auto", padding: 20, gap: 14 }}>
-            {cwd && <section style={{ padding: "16px", border: "1px solid var(--border)", borderRadius: "var(--radius-modal)", background: "var(--bg-subtle)" }}>
+          {visitedTabs.has("mcp") && <div role="tabpanel" id="settings-panel-mcp" aria-labelledby="settings-tab-mcp" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "mcp" ? "flex" : "none", flexDirection: "column" }}>
+            {cwd && <section style={{ padding: "16px 16px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{t("settings.mcp.behaviorTitle")}</div>
-              <p style={{ margin: "6px 0 10px", color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>{t("settings.mcp.behaviorDescription")}</p>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 9 }}>
+              <p style={{ margin: "6px 0 12px", color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>{t("settings.mcp.behaviorDescription")}</p>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))", gap: 9, paddingBottom: 16 }}>
                 <NativeSetting label={t("settings.mcp.loadProject")} description={t("settings.mcp.loadProjectDesc")}><input type="checkbox" style={{ accentColor: "var(--accent)", width: 15, height: 15, cursor: "pointer" }} checked={nativeSettings?.mcp?.enableProjectConfig ?? true} onChange={(event) => void saveNativeSettings({ ...(nativeSettings ?? {}), mcp: { ...(nativeSettings?.mcp ?? {}), enableProjectConfig: event.target.checked } })} /></NativeSetting>
                 <NativeSetting label={t("settings.mcp.renderMarkdown")} description={t("settings.mcp.renderMarkdownDesc")}><input type="checkbox" style={{ accentColor: "var(--accent)", width: 15, height: 15, cursor: "pointer" }} checked={nativeSettings?.mcp?.renderMarkdownResults ?? true} onChange={(event) => void saveNativeSettings({ ...(nativeSettings ?? {}), mcp: { ...(nativeSettings?.mcp ?? {}), renderMarkdownResults: event.target.checked } })} /></NativeSetting>
                 <NativeSetting label={t("settings.mcp.notifications")} description={t("settings.mcp.notificationsDesc")}><input type="checkbox" style={{ accentColor: "var(--accent)", width: 15, height: 15, cursor: "pointer" }} checked={nativeSettings?.mcp?.notifications ?? false} onChange={(event) => void saveNativeSettings({ ...(nativeSettings ?? {}), mcp: { ...(nativeSettings?.mcp ?? {}), notifications: event.target.checked } })} /></NativeSetting>
@@ -296,14 +296,14 @@ export function SettingsConfig({ activeTab, advisorEnabled, onAdvisorChange, cwd
             {!cwd && <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 12 }}>{t("settings.mcp.noWorkspace")}</p>}
             {nativeSettingsError && <p role="alert" style={{ margin: 0, color: "var(--status-error)", fontSize: 12 }}>{nativeSettingsError}</p>}
           </div>}
-          {cwd && visitedTabs.has("skills") && <div style={{ display: activeTab === "skills" ? "flex" : "none", height: "100%", minHeight: 0, flexDirection: "column" }}>
+          {cwd && visitedTabs.has("skills") && <div role="tabpanel" id="settings-panel-skills" aria-labelledby="settings-tab-skills" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "skills" ? "flex" : "none", flexDirection: "column" }}>
             <SkillsConfig embedded cwd={cwd} onClose={onClose} />
           </div>}
-          {cwd && visitedTabs.has("plugins") && <div style={{ display: activeTab === "plugins" ? "flex" : "none", height: "100%", minHeight: 0, flexDirection: "column" }}>
+          {cwd && visitedTabs.has("plugins") && <div role="tabpanel" id="settings-panel-plugins" aria-labelledby="settings-tab-plugins" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "plugins" ? "flex" : "none", flexDirection: "column" }}>
             <PluginsConfig embedded cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onPluginsReloaded} />
           </div>}
           {visitedTabs.has("sidebar") && (
-            <div role="tabpanel" id="settings-panel-sidebar" aria-labelledby="settings-tab-sidebar" style={{ display: activeTab === "sidebar" ? "flex" : "none", height: "100%", minHeight: 0, overflowY: "auto", padding: 20, flexDirection: "column", gap: 14 }}>
+            <div role="tabpanel" id="settings-panel-sidebar" aria-labelledby="settings-tab-sidebar" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: activeTab === "sidebar" ? "flex" : "none", flexDirection: "column" }}>
               <SidebarSettings />
             </div>
           )}

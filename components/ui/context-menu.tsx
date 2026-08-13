@@ -5,9 +5,20 @@
  * `Trigger` element intercepts the native contextmenu event and surfaces the
  * menu at the cursor; items fire onClick. Theming follows the same CSS
  * variables as the other primitives.
+ *
+ * The Portal wrapper is wrapped in an explicit `position: fixed; z-index:
+ * 2400` div. base-ui's FloatingPortal otherwise relies on a portal root that
+ * does not always end up above app-side stacking contexts that use
+ * `transform`, `filter`, or `contain` — observable on this app where the
+ * sidebar and chat panel both create trap contexts. Forcing a fixed,
+ * `z-index: 2400` wrapper pushes the menu to the topmost layer regardless.
+ * `pointer-events: none` on the wrapper keeps clicks passing through to the
+ * inner Popup (which inherits back to `pointer-events: auto`).
  */
 import { ContextMenu as BaseContextMenu } from "@base-ui/react/context-menu";
 import type React from "react";
+
+const MENU_LAYER_Z_INDEX = 2400;
 
 export interface ContextMenuItemProps {
   label: React.ReactNode;
@@ -56,23 +67,24 @@ export const ContextMenuTrigger = BaseContextMenu.Trigger;
 export function ContextMenuContent({ children }: { children: React.ReactNode }) {
   return (
     <BaseContextMenu.Portal>
-      <BaseContextMenu.Positioner sideOffset={4}>
-        <BaseContextMenu.Popup
-          style={{
-            background: "var(--bg-panel)",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-card)",
-            boxShadow: "var(--shadow-pop)",
-            padding: 4,
-            minWidth: 200,
-            zIndex: 1100,
-            outline: "none",
-          }}
-        >
-          {children}
-        </BaseContextMenu.Popup>
-      </BaseContextMenu.Positioner>
+      <div style={{ position: "fixed", inset: 0, zIndex: MENU_LAYER_Z_INDEX, pointerEvents: "none" }}>
+        <BaseContextMenu.Positioner sideOffset={4}>
+          <BaseContextMenu.Popup
+            style={{
+              background: "var(--bg-panel)",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-card)",
+              boxShadow: "var(--shadow-pop)",
+              minWidth: 200,
+              pointerEvents: "auto",
+              outline: "none",
+            }}
+          >
+            {children}
+          </BaseContextMenu.Popup>
+        </BaseContextMenu.Positioner>
+      </div>
     </BaseContextMenu.Portal>
   );
 }

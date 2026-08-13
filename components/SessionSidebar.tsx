@@ -808,10 +808,11 @@ function RocinanteTitle() {
     if (expandedProjects === null) expandProject(project);
   }, [selectedProject, expandedProjects, expandProject]);
 
-  const commitAddProject = useCallback(async (input: { cwd: string; name: string; description: string }) => {
+  const commitAddProject = useCallback(async (input: { cwd: string; name: string; description: string; gitUrl?: string }) => {
     const cwd = input.cwd.trim();
     const name = input.name.trim();
     const description = input.description.trim();
+    const gitUrl = input.gitUrl?.trim();
     if (!cwd || !name || addProjectBusy) return;
 
     setAddProjectBusy(true);
@@ -820,7 +821,7 @@ function RocinanteTitle() {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd, name, description }),
+        body: JSON.stringify({ cwd, name, description, ...(gitUrl ? { gitUrl } : {}) }),
       });
       const data = await res.json().catch(() => ({})) as { project?: ManagedProject; error?: string; code?: string };
       if (!res.ok || data.error || !data.project) {
@@ -1196,6 +1197,7 @@ function RocinanteTitle() {
         onOpenChange={(open) => { if (!open) setCloneError(null); setCloneOpen(open); }}
         busy={cloneBusy}
         error={cloneError}
+        defaultParentPath={selectedCwd || homeDir || undefined}
         onSubmit={handleCloneSubmit}
       />
       {/* Header */}
@@ -1245,6 +1247,27 @@ function RocinanteTitle() {
               <Plus size={12} strokeWidth={2.2} aria-hidden="true" />
               {t("sessionSidebar.new")}
             </button>
+            <Tooltip content={t("sessionSidebar.cloneTitle")} side="bottom">
+            <button
+              aria-label={t("sessionSidebar.clone")}
+              onClick={() => setCloneOpen(true)}
+              title={t("sessionSidebar.cloneTitle")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--bg-panel)",
+                border: "1px solid var(--border)",
+                color: "var(--text-muted)",
+                width: 32, height: 32, padding: 0, flexShrink: 0,
+                borderRadius: "var(--radius-control)",
+                cursor: "pointer", lineHeight: 0,
+                transition: "background var(--dur-fast) var(--ease-out-warm), color var(--dur-fast) var(--ease-out-warm), border-color var(--dur-fast) var(--ease-out-warm)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--accent) 35%, transparent)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+            >
+              <GitBranch size={14} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+            </Tooltip>
             <Tooltip content={t("sessionSidebar.importTitle")} side="bottom">
             <button
               aria-label={t("sessionSidebar.import")}
@@ -1347,10 +1370,11 @@ function RocinanteTitle() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
             <span
               style={{
+                fontFamily: "var(--font-mono)",
                 color: "var(--text-muted)",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.05em",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
               }}
             >
@@ -1439,6 +1463,10 @@ function RocinanteTitle() {
               handleSessionDeleted={handleSessionDeleted}
               activeProjectSwitcher={activeProjectSwitcher}
               homeDir={homeDir}
+              onArchive={handleArchiveProject}
+              onEdit={handleOpenEdit}
+              onClone={() => setCloneOpen(true)}
+              archiveBusyPath={archiveBusyPath}
             />
           )}
       {/* File Explorer section */}
@@ -1669,14 +1697,13 @@ function ProjectRow({
           display: "flex",
           alignItems: "center",
           gap: 2,
-          minHeight: 48,
-          margin: "0 6px",
-          padding: "4px 5px 4px 4px",
+          margin: "0 2px",
+          padding: "4px 4px",
           borderRadius: "var(--radius-control)",
           background: isActive ? "var(--bg-selected)" : hovered ? "var(--bg-hover)" : "transparent",
-          border: `1px solid ${isActive ? "color-mix(in srgb, var(--accent) 20%, var(--border))" : "transparent"}`,
-          boxShadow: isActive ? "var(--shadow-card)" : "none",
-          transition: SIDEBAR_BUTTON_TRANSITION,
+          border: "none",
+          boxShadow: "none",
+          outline: "none",
         }}
       >
         <button
@@ -1719,10 +1746,8 @@ function ProjectRow({
             textAlign: "left",
           }}
         >
-          <span
-            className="display-serif"
-            style={{
-              overflow: "hidden",
+          <span style={{
+            overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               fontSize: 13,
@@ -1873,7 +1898,7 @@ function OtherSessionsGroup({
   onSessionDeleted,
 }: OtherSessionsGroupProps) {
   const { t } = useI18n();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [olderExpanded, setOlderExpanded] = useState(false);
   const tree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const hiddenCount = Math.max(0, tree.length - MAX_PROJECT_SESSIONS);
@@ -1896,11 +1921,11 @@ function OtherSessionsGroup({
           border: "none",
           color: "var(--text-muted)",
           cursor: "pointer",
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.05em",
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
-          textAlign: "left",
         }}
       >
         <ChevronRight size={12} strokeWidth={1.8} style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)" }} aria-hidden="true" />
@@ -1986,12 +2011,16 @@ interface ArchivedProjectsSectionProps {
   handleSessionDeleted: (id: string) => void;
   activeProjectSwitcher: ReactNode;
   homeDir: string;
+  onArchive: (path: string) => void;
+  onEdit: (path: string) => void;
+  onClone: () => void;
+  archiveBusyPath: string | null;
 }
 
 /** Archived projects rendered as a single collapsible section — collapsed by
- *  default to keep the sidebar scannable. The rows themselves still support
- *  the worktree switcher and removal; context-menu archive/edit/clone are
- *  intentionally omitted because the spec keeps this section read-mostly. */
+ *  default to keep the sidebar scannable. The rows support the full context
+ *  menu (archive/restore, edit, clone) so users can revive or rewrite
+ *  archived projects without leaving the section. */
 function ArchivedProjectsSection({
   projects,
   activity,
@@ -2011,6 +2040,10 @@ function ArchivedProjectsSection({
   handleSessionDeleted,
   activeProjectSwitcher,
   homeDir,
+  onArchive,
+  onEdit,
+  onClone,
+  archiveBusyPath,
 }: ArchivedProjectsSectionProps) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -2031,11 +2064,11 @@ function ArchivedProjectsSection({
           border: "none",
           color: "var(--text-muted)",
           cursor: "pointer",
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.05em",
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
-          textAlign: "left",
         }}
       >
         <ChevronRight size={12} strokeWidth={1.8} style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)" }} aria-hidden="true" />
@@ -2063,10 +2096,10 @@ function ArchivedProjectsSection({
             onSessionDeleted={handleSessionDeleted}
             activeWorktreeSwitcher={activeProjectSwitcher}
             homeDir={homeDir}
-            onArchive={undefined}
-            onEdit={undefined}
-            onClone={undefined}
-            archiveBusy={false}
+            onArchive={onArchive}
+            onEdit={onEdit}
+            onClone={onClone}
+            archiveBusy={archiveBusyPath === project.path}
           />
         ))}
       </CollapsiblePanel>
@@ -2710,7 +2743,7 @@ const SessionItem = memo(function SessionItem({
         <>
           {depth > 0 && <GitBranch size={11} strokeWidth={2} style={{ flexShrink: 0, color: "var(--text-dim)" }} aria-hidden="true" />}
           <button ref={contentButtonRef} type="button" className="session-item-button" aria-current={isSelected ? "true" : undefined} onKeyDown={(event) => { if (event.key === "Delete") { event.preventDefault(); setConfirmDelete(true); } }} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
-            <span className="display-serif" title={title} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text)", fontSize: 13, fontWeight: isSelected ? 600 : 500, lineHeight: 1.35 }}>
+            <span title={title} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text)", fontSize: 13, fontWeight: isSelected ? 600 : 500, lineHeight: 1.35 }}>
               {title}
             </span>
           </button>

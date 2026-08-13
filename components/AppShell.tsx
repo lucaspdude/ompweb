@@ -98,8 +98,14 @@ export function AppShell() {
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
   const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
+  const [homeDir, setHomeDir] = useState<string>("");
+  useEffect(() => {
+    fetch("/api/home")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { home?: string } | null) => { if (data?.home) setHomeDir(data.home); })
+      .catch(() => {});
+  }, []);
   const [initialCwdStatus, setInitialCwdStatus] = useState<"idle" | "validating" | "ready" | "error">(
-    () => initialNavigation.requestedCwd ? "validating" : "idle",
   );
   const [initialCwdError, setInitialCwdError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -782,7 +788,7 @@ export function AppShell() {
           onKeyDown={handleSidebarResizeKey}
           title={t("appShell.resizeSidebarTitle")}
           style={{
-            width: 5,
+            width: 1,
             flexShrink: 0,
             cursor: "col-resize",
             background: "transparent",
@@ -1336,6 +1342,8 @@ export function AppShell() {
               key={sessionKey}
               session={selectedSession}
               newSessionCwd={effectiveNewSessionCwd}
+              selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
+              homeDir={homeDir}
               onAgentEnd={handleAgentEnd}
               onSessionCreated={handleSessionCreated}
               onSessionForked={handleSessionForked}
