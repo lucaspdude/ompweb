@@ -6,7 +6,7 @@ import { listJobsForCli } from "@/lib/cli-tools/jobs";
 import type { CliJob } from "@/lib/cli-tools/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60 * 30; // 30 min — login can be slow
+export const maxDuration = 1800; // 30 min — login can be slow
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
