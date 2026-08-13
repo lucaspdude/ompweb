@@ -1021,5 +1021,10 @@
   "rightSidebar.repoSection": "{name} · {path} · {count} alterações",
   "rightSidebar.repoCounts": "{modified}M {added}A {deleted}D {untracked}U",
   "rightSidebar.createFileFailed": "Não foi possível criar arquivo: {error}",
-  "rightSidebar.createFolderFailed": "Não foi possível criar pasta: {error}"
+  "rightSidebar.createFolderFailed": "Não foi possível criar pasta: {error}",
+  "fileExplorer.deleteDone": "{name} excluído",
+  "fileExplorer.renameDone": "Renomeado para {name}",
+  "common.delete": "Excluir",
+  "common.cancel": "Cancelar",
+  "common.save": "Salvar"
 }

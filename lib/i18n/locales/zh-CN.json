@@ -1021,5 +1021,10 @@
   "rightSidebar.repoSection": "{name} · {path} · {count} changes",
   "rightSidebar.repoCounts": "{modified}M {added}A {deleted}D {untracked}U",
   "rightSidebar.createFileFailed": "Could not create file: {error}",
-  "rightSidebar.createFolderFailed": "Could not create folder: {error}"
+  "rightSidebar.createFolderFailed": "Could not create folder: {error}",
+  "fileExplorer.deleteDone": "{name} deleted",
+  "fileExplorer.renameDone": "Renamed to {name}",
+  "common.delete": "Delete",
+  "common.cancel": "Cancel",
+  "common.save": "Save"
 }
