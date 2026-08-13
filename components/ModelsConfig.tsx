@@ -366,6 +366,7 @@ const COMPOSER_MODELS_STORAGE_KEY = "omp-composer-models";
 const NATIVE_MODEL_ROLES = ["default", "smol", "slow", "vision", "plan", "designer", "commit", "tiny", "task", "advisor"];
 
 function ModelRolesDetail({ models }: { models: RuntimeModelEntry[] }) {
+  const { t } = useI18n();
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -386,7 +387,7 @@ function ModelRolesDetail({ models }: { models: RuntimeModelEntry[] }) {
       const response = await fetch("/api/model-roles", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roles }) });
       const data = await response.json() as { error?: string };
       if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
-      toast.success("OMP model roles saved");
+      toast.success(t("modelsConfig.rolesSaved"));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -2014,10 +2015,10 @@ export function ModelsConfig({ onClose, onSelectTab, onSaved, embedded = false }
             display: "flex", flexDirection: "column", flexShrink: 0, background: "var(--bg-panel)",
           }}>
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
-              <button type="button" onClick={() => setSelection({ type: "registry" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "registry" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>Native OMP registry</button>
-              <button type="button" onClick={() => setSelection({ type: "fallbacks" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "fallbacks" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>Retry & fallback</button>
-              <button type="button" onClick={() => setSelection({ type: "picker" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "picker" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>Composer model picker</button>
-              <button type="button" onClick={() => setSelection({ type: "roles" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "roles" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>OMP model roles</button>
+              <button type="button" onClick={() => setSelection({ type: "registry" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "registry" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>{t("modelsConfig.tab.registry")}</button>
+              <button type="button" onClick={() => setSelection({ type: "fallbacks" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "fallbacks" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>{t("modelsConfig.tab.fallbacks")}</button>
+              <button type="button" onClick={() => setSelection({ type: "picker" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "picker" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>{t("modelsConfig.tab.picker")}</button>
+              <button type="button" onClick={() => setSelection({ type: "roles" })} style={{ width: "100%", padding: "7px 8px", border: "none", borderRadius: 5, background: selection?.type === "roles" ? "var(--bg-selected)" : "none", color: "var(--text)", cursor: "pointer", fontSize: 12, textAlign: "left" }}>{t("modelsConfig.tab.roles")}</button>
               {(activeOAuth.length > 0 || activeApiKey.length > 0) && <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 8px 4px", color: "var(--text-dim)", fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}><span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />Connected through OMP</div>}
               {/* Active OAuth subscriptions */}
               {activeOAuth.map((p) => {
@@ -2052,7 +2053,7 @@ export function ModelsConfig({ onClose, onSelectTab, onSaved, embedded = false }
                   >
                     <ProviderIcon id={p.id} size={16} />
                     <span style={{ fontSize: 12, color: "var(--text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.displayName}</span>
-                    <span title={`OMP API-key provider: ${p.id}`} style={{ padding: "2px 4px", borderRadius: 3, background: "var(--bg-subtle)", color: "var(--text-dim)", fontSize: 9, flexShrink: 0 }}>API key</span>
+                    <span title={t("modelsConfig.apiKeyProviderTitle", { id: p.id })} style={{ padding: "2px 4px", borderRadius: 3, background: "var(--bg-subtle)", color: "var(--text-dim)", fontSize: 9, flexShrink: 0 }}>{t("modelsConfig.apiKeyBadge")}</span>
                   </button>
                 );
               })}

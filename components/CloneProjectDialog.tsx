@@ -18,6 +18,10 @@ interface CloneProjectDialogProps {
   onOpenChange: (open: boolean) => void;
   busy: boolean;
   error: string | null;
+  /** Initial value for the parent-folder field. Falls back to the active
+   *  project's root or the user's home directory when the caller does not
+   *  supply one — the user can still override the value before submitting. */
+  defaultParentPath?: string;
   onSubmit: (input: {
     url: string;
     folderName: string;
@@ -37,13 +41,14 @@ export function CloneProjectDialog({
   onOpenChange,
   busy,
   error,
+  defaultParentPath,
   onSubmit,
 }: CloneProjectDialogProps) {
   const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [folderName, setFolderName] = useState("");
   const [folderNameDirty, setFolderNameDirty] = useState(false);
-  const [parentPath, setParentPath] = useState("");
+  const [parentPath, setParentPath] = useState(defaultParentPath ?? "");
   const [description, setDescription] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const urlInputRef = useRef<HTMLInputElement | null>(null);
@@ -59,16 +64,25 @@ export function CloneProjectDialog({
     setFolderName(basenameFromUrl(url));
   }, [url, folderNameDirty]);
 
-  // Reset on close.
+  // Reset everything on close.
   useEffect(() => {
     if (open) return;
     setUrl("");
     setFolderName("");
     setFolderNameDirty(false);
-    setParentPath("");
+    setParentPath(defaultParentPath ?? "");
     setDescription("");
     setPickerOpen(false);
   }, [open]);
+
+  // Keep parentPath synced with the latest `defaultParentPath` whenever the
+  // dialog is open. `useState` only fires on mount, so if the caller
+  // resolves the default asynchronously (e.g. after `/api/home` returns) the
+  // state would otherwise stay empty until the next mount.
+  useEffect(() => {
+    if (!open) return;
+    if (defaultParentPath && !parentPath) setParentPath(defaultParentPath);
+  }, [defaultParentPath, open, parentPath]);
 
   useEffect(() => {
     if (!open) return;

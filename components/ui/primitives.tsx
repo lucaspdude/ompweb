@@ -67,7 +67,7 @@ export function DialogContent({ children, className, style, ariaLabel }: {
 
 export function DialogTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <BaseDialog.Title className="display-serif" style={{ fontSize: 20, margin: "0 0 12px", ...style }}>
+    <BaseDialog.Title style={{ fontSize: 20, fontWeight: 600, margin: "0 0 12px", ...style }}>
       {children}
     </BaseDialog.Title>
   );

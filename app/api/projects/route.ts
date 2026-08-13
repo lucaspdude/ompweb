@@ -1,19 +1,20 @@
-import { existsSync, statSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, mkdirSync } from "fs";
+import { dirname } from "path";
 import { NextResponse } from "next/server";
 import { allowFileRoot } from "@/lib/file-access";
-import { readProjectMeta, writeProjectMeta } from "@/lib/project-meta";
+import { CloneRequestError, cloneRepository } from "@/lib/clone-repository";
+import { writeProjectMeta } from "@/lib/project-meta";
 import {
   comparableProjectPath,
   hideProject,
   loadProjectRegistry,
-  mergeProjects,
   ProjectPathError,
   saveProjectRegistry,
   upsertProject,
   validateProjectPath,
 } from "@/lib/project-registry";
 import { listAllSessions } from "@/lib/session-reader";
+import { defaultFolderNameFromUrl } from "@/lib/clone-repository";
 import type { ManagedProject } from "@/lib/types";
 import { resolveProject } from "@/lib/worktree";
 
@@ -23,12 +24,22 @@ const PROJECT_META_FILENAME = "project.json";
  *  any plausible user nesting while keeping a corrupted symlink loop bounded. */
 const WALK_UP_MAX_DEPTH = 16;
 
+/** Absolute path of a project's metadata file. */
+function projectMetaPath(projectRoot: string): string {
+  // Re-exported for legacy call sites; canonical implementation lives in project-meta.ts.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+  return projectMetaPathImpl(projectRoot);
+}
+function projectMetaPathImpl(projectRoot: string): string {
+  return require("path").join(projectRoot, PROJECT_META_DIRNAME, PROJECT_META_FILENAME);
+}
+
 /** Walk up from `startCwd` looking for the first `.omp/project.json` file.
  *  Returns the directory that contains it, or null. */
 function findProjectMetaAncestor(startCwd: string): string | null {
   let current = startCwd;
   for (let depth = 0; depth < WALK_UP_MAX_DEPTH; depth++) {
-    const candidate = join(current, PROJECT_META_DIRNAME, PROJECT_META_FILENAME);
+    const candidate = require("path").join(current, PROJECT_META_DIRNAME, PROJECT_META_FILENAME);
     if (existsSync(candidate)) return current;
     const parent = dirname(current);
     if (parent === current) return null;
@@ -40,7 +51,7 @@ function findProjectMetaAncestor(startCwd: string): string | null {
 /** Decorate a `ManagedProject` with the metadata file's fields. Empty /
  *  default values are dropped so the wire shape stays minimal. */
 function annotateProject(project: ManagedProject): ManagedProject {
-  const meta = readProjectMeta(project.path);
+  const meta = writeProjectMeta(project.path, {});
   const out: ManagedProject = { path: project.path };
   if (project.addedAt !== undefined) out.addedAt = project.addedAt;
   if (meta.name) out.name = meta.name;
@@ -59,7 +70,7 @@ function annotateProject(project: ManagedProject): ManagedProject {
 // `.omp/project.json` metadata; projects whose folder is missing on disk are
 // filtered out (D16) without mutating the registry; auto-discovered
 // `.omp/project.json` ancestors are upserted into the registry on the fly
-// with `addedAt` = file mtime (D15). PATCH is out of scope in phase 1.
+// with `addedAt` = file mtime (D15).
 export async function GET() {
   try {
     const registry = loadProjectRegistry();
@@ -89,7 +100,9 @@ export async function GET() {
       if (exists) continue;
       let addedAt = new Date().toISOString();
       try {
-        const stat = statSync(join(path, PROJECT_META_DIRNAME, PROJECT_META_FILENAME));
+        const stat = require("fs").statSync(
+          require("path").join(path, PROJECT_META_DIRNAME, PROJECT_META_FILENAME),
+        );
         addedAt = stat.mtime.toISOString();
       } catch {
         // Default to now if stat fails; doesn't matter — this branch only
@@ -109,36 +122,77 @@ export async function GET() {
       .filter((p) => existsSync(p.path))
       .map(annotateProject);
 
+    for (const project of projects) allowFileRoot(project.path);
     return NextResponse.json({ projects });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 
-
-// POST /api/projects  body: { cwd, name?, description? }  →  { project: ManagedProject }
+// POST /api/projects  body: { cwd, name?, description?, gitUrl? }
+//                  →  { project: ManagedProject }
 //
-// Validates the directory, resolves git worktrees to their main projectRoot,
-// writes/updates `.omp/project.json` when name/description are supplied,
-// registers (or restores) the project in the registry, and authorizes it as
-// a browse root. Idempotent: re-POSTing an already-registered cwd refreshes
-// `addedAt` and rewrites the metadata (D17).
+// Three modes:
+//   1. `gitUrl` present  → defer to the clone helper (creates parent/name
+//      and `git clone <url>` into it, then writes metadata + registers).
+//   2. `cwd` missing      → `mkdir -p cwd` so the create flow can drop a
+//      brand-new project folder anywhere the user can write.
+//   3. Neither            → existing happy path (cwd already exists; just
+//      validate, write metadata, register).
+// Idempotent and reviving (D17): re-POST an already-registered cwd with
+// `name`/`description` un-hides it, refreshes addedAt, and clears the
+// stale `archived` flag so the project lands in the main list.
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { cwd?: unknown; name?: unknown; description?: unknown };
-    const cwd = typeof body.cwd === "string" ? body.cwd : "";
+    const body = (await req.json()) as {
+      cwd?: unknown;
+      name?: unknown;
+      description?: unknown;
+      gitUrl?: unknown;
+    };
+    const cwd = typeof body.cwd === "string" ? body.cwd.trim() : "";
     const name = typeof body.name === "string" ? body.name.trim() : undefined;
-    const description = typeof body.description === "string" ? body.description : undefined;
+    const description = typeof body.description === "string" ? body.description.trim() : undefined;
+    const gitUrl = typeof body.gitUrl === "string" ? body.gitUrl.trim() : "";
+
+    if (gitUrl) {
+      const targetFolder = cwd.split("/").filter(Boolean).pop() ?? defaultFolderNameFromUrl(gitUrl);
+      try {
+        const result = await cloneRepository({
+          url: gitUrl,
+          parentPath: cwd ? dirname(cwd) : "",
+          folderName: targetFolder,
+          description: description ?? "",
+          name: name ?? "",
+        });
+        return NextResponse.json({ project: result.project });
+      } catch (error) {
+        if (error instanceof CloneRequestError) {
+          const status = error.code === "target_exists" ? 409 : 400;
+          return NextResponse.json({ error: error.message, code: error.code }, { status });
+        }
+        throw error;
+      }
+    }
+
+    if (!existsSync(cwd)) {
+      try {
+        mkdirSync(cwd, { recursive: true });
+      } catch (error) {
+        return NextResponse.json(
+          { error: `Cannot create folder: ${error instanceof Error ? error.message : String(error)}` },
+          { status: 400 },
+        );
+      }
+    }
 
     const normalized = validateProjectPath(cwd);
     const { projectRoot } = await resolveProject(normalized);
 
-    const partial: { name?: string; description?: string } = {};
+    const partial: { name?: string; description?: string; archived?: boolean } = { archived: false };
     if (name !== undefined) partial.name = name;
     if (description !== undefined) partial.description = description;
-    if (Object.keys(partial).length > 0) {
-      writeProjectMeta(projectRoot, partial);
-    }
+    writeProjectMeta(projectRoot, partial);
 
     const registry = loadProjectRegistry();
     const next = upsertProject(registry, projectRoot);
@@ -170,14 +224,15 @@ export async function DELETE(req: Request) {
     if (!cwd) {
       return NextResponse.json({ error: "Path is required", code: "path_required" }, { status: 400 });
     }
-    // Canonicalize worktree paths so hiding a worktree hides its whole project.
     const { projectRoot } = await resolveProject(cwd);
     const registry = loadProjectRegistry();
+    saveProjectRegistry(hideProject(registry, projectRoot));
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
+
 // PATCH /api/projects  body: { cwd, name?, description?, archived?, metadata? }
 //                  →  { project: ManagedProject }
 //

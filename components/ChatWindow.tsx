@@ -15,6 +15,8 @@ import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
+import { getFileName } from "@/lib/file-paths";
+import { FolderGit2 } from "lucide-react";
 import { normalizeCustomPanelLines, parseAnsiLine } from "@/lib/ansi";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
 import {
@@ -24,11 +26,13 @@ import {
   restoreScrollTop,
   VISIBLE_PAGE_SIZE,
 } from "@/lib/chat-lazy-load";
-
 interface Props {
   session: SessionInfo | null;
   newSessionCwd: string | null;
+  selectedCwd?: string | null;
+  homeDir?: string;
   advisorEnabled?: boolean;
+
   onAgentEnd?: () => void;
   onSessionCreated?: (session: SessionInfo) => void;
   onSessionForked?: (newSessionId: string) => void;
@@ -152,6 +156,48 @@ function OmpRuntimeVersion() {
   );
 }
 
+/** Compact project-context badge shown in the empty chat header. Surfaces
+ *  the active project (or the pending new-session cwd) so the user always
+ *  knows which project their new chat is attached to. */
+function ProjectContextBadge({ cwd, homeDir }: { cwd: string | null | undefined; homeDir?: string }) {
+  const { t } = useI18n();
+  const trimmed = cwd?.trim() ?? "";
+  const hasProject = trimmed.length > 0;
+  const display = hasProject && homeDir && trimmed.startsWith(homeDir)
+    ? "~" + trimmed.slice(homeDir.length)
+    : (cwd ?? "");
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        border: `1px solid ${hasProject ? "var(--border)" : "var(--status-error)"}`,
+        borderRadius: "var(--radius-control)",
+        background: "var(--bg-panel)",
+        color: "var(--text-muted)",
+        fontSize: 11,
+        lineHeight: 1.4,
+        maxWidth: 360,
+      }}
+      title={hasProject ? (cwd ?? "") : t("chatWindow.emptyProjectBadge.hint")}
+    >
+      <FolderGit2 size={11} aria-hidden="true" />
+      {hasProject ? (
+        <span style={{ color: "var(--text)", fontWeight: 600, whiteSpace: "nowrap" }}>{getFileName(trimmed)}</span>
+      ) : (
+        <span style={{ color: "var(--status-error)", fontWeight: 600 }}>{t("chatWindow.emptyProjectBadge.none")}</span>
+      )}
+      {hasProject && homeDir && (
+        <span style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {display}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messageCount: number; toolCallCount: number; children: ReactNode }) {
   const { t, tn } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -195,8 +241,8 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
     </div>
   );
 }
+export function ChatWindow({ session, newSessionCwd, selectedCwd, homeDir, advisorEnabled, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
 
-export function ChatWindow({ session, newSessionCwd, advisorEnabled, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
   const { t, tn } = useI18n();
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
   const isMobile = useIsMobile();
@@ -519,11 +565,8 @@ export function ChatWindow({ session, newSessionCwd, advisorEnabled, onAgentEnd,
                 <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: 0, color: "var(--text)", flexShrink: 0, whiteSpace: "nowrap" }}>⌥</span>
                 <span style={{ fontSize: 22, color: "var(--text)", fontWeight: 700, letterSpacing: 0, flexShrink: 0, whiteSpace: "nowrap" }}>Rocinante</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  web <span style={{ color: "var(--text)" }}>v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}</span>
-                </span>
-                <OmpRuntimeVersion />
+              <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+                <ProjectContextBadge cwd={session?.cwd ?? selectedCwd ?? newSessionCwd} homeDir={homeDir} />
               </div>
             </div>
             <NoticeShelf notices={notices} align="right" />

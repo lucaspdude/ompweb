@@ -176,8 +176,7 @@ function normalizeCwd(cwd: string): string {
  *  with a stable code on failure (path_required / directory_not_found /
  *  not_a_directory). */
 export function validateProjectPath(cwd: string): string {
-  const trimmed = typeof cwd === "string" ? cwd.trim() : "";
-  if (!trimmed) throw new ProjectPathError("path_required", "Path is required");
+  const trimmed = cwd.trim();
 
   const normalized = normalizeCwd(trimmed);
   let stat: Stats;
