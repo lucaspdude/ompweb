@@ -202,6 +202,12 @@ main() {
 
   Run \033[1m'rocinante'\033[0m to start the web UI.
   The UI opens on http://127.0.0.1:30178 by default.
+  If 'rocinante' is not on PATH, add \033[1m${BIN_DIR}\033[0m to your shell rc.
+EOF
+
+  seed_env_file
+}
+
 seed_env_file() {
   local env_path="${SHARE_DIR}/.env"
   if [ -f "${env_path}" ]; then
@@ -222,10 +228,6 @@ seed_env_file() {
   } > "${env_path}"
   chmod 600 "${env_path}" 2>/dev/null || true
   log "Seeded .env at ${env_path} (ROCINANTE_AUTH_ENABLED=false)"
-}
-
-  If 'rocinante' is not on PATH, add \033[1m${BIN_DIR}\033[0m to your shell rc.
-EOF
 }
 
 main "$@"
