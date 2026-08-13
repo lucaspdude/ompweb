@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { CliToolsPanel } from "./CliToolsPanel";
+import { GitSshPanel } from "./GitSshPanel";
+import { SshServersPanel } from "./SshServersPanel";
 import { useI18n } from "@/lib/i18n";
 
 type Section = "clis" | "git-ssh" | "ssh-servers";
+
+const SECTION_LABEL: Record<Section, string> = {
+  "clis": "settings.developerTools.clisTabLabel",
+  "git-ssh": "settings.developerTools.gitSshTabLabel",
+  "ssh-servers": "settings.developerTools.sshServerTabLabel",
+};
 
 export function DeveloperTools() {
   const { t } = useI18n();
@@ -16,7 +24,7 @@ export function DeveloperTools() {
         role="tablist"
         style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)", padding: "0 0 8px" }}
       >
-        {(["clis", "git-ssh", "ssh-servers"] as const).map((s) => (
+        {(Object.keys(SECTION_LABEL) as Section[]).map((s) => (
           <button
             key={s}
             type="button"
@@ -33,18 +41,14 @@ export function DeveloperTools() {
               cursor: "pointer",
             }}
           >
-            {s === "clis" ? t("settings.developerTools.clisTabLabel") : s === "git-ssh" ? t("settings.developerTools.gitSshTabLabel") : t("settings.developerTools.sshServerTabLabel")}
+            {t(SECTION_LABEL[s])}
           </button>
         ))}
       </nav>
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {section === "clis" ? <CliToolsPanel /> : null}
-        {section === "git-ssh" ? (
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{t("settings.developerTools.gitSsh.comingSoon")}</p>
-        ) : null}
-        {section === "ssh-servers" ? (
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{t("settings.developerTools.sshServers.comingSoon")}</p>
-        ) : null}
+        {section === "git-ssh" ? <GitSshPanel /> : null}
+        {section === "ssh-servers" ? <SshServersPanel /> : null}
       </div>
     </div>
   );
