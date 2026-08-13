@@ -23,7 +23,7 @@
 #   this script picks whichever exists.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.sh | sh
 #   curl -fsSL ... | PI_INSTALL_DIR=$HOME/bin sh        # custom omp install dir
 #   curl -fsSL ... | PI_REF=v17.2.15 sh                # pin a specific omp release
 #   curl -fsSL ... | ROCINANTE_VERSION=v0.3.0 sh       # pin a specific Rocinante release
@@ -40,7 +40,7 @@ PI_REF="${PI_REF:-}"                      # empty = use whatever the upstream in
 ROCINANTE_VERSION="${ROCINANTE_VERSION:-}" # empty = use the latest release
 BIN_DIR="${BIN_DIR:-$PI_INSTALL_DIR}"      # where to put the `rocinante` symlink
 SHARE_DIR="${SHARE_DIR:-$HOME/.local/share/rocinante}"
-REPO="lucaspdude/ompweb"
+REPO="lucaspdude/rocinante"
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=19
 OMP_INSTALL_URL="https://omp.sh/install"

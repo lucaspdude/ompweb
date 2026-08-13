@@ -22,7 +22,7 @@
 #   this script picks whichever exists.
 #
 # Usage (PowerShell):
-#   irm https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.ps1 | iex
 #   $env:PI_INSTALL_DIR = "$HOME\bin"; irm ... | iex
 #   $env:PI_REF = "v17.2.15"; irm ... | iex
 #   $env:ROCINANTE_VERSION = "v0.3.0"; irm ... | iex
@@ -38,7 +38,7 @@ param(
   [string]$RocinanteVersion = "",
   [string]$BinDir = "",
   [string]$ShareDir = "",
-  [string]$Repo = "lucaspdude/ompweb"
+  [string]$Repo = "lucaspdude/rocinante"
 )
 
 $ErrorActionPreference = "Stop"

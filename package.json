@@ -2,13 +2,13 @@
   "name": "@lucaspdude/rocinante",
   "version": "0.4.1",
   "description": "Web UI for the Rocinante coding agent",
-  "homepage": "https://github.com/lucaspdude/ompweb#readme",
+  "homepage": "https://github.com/lucaspdude/rocinante#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lucaspdude/ompweb.git"
+    "url": "git+https://github.com/lucaspdude/rocinante.git"
   },
   "bugs": {
-    "url": "https://github.com/lucaspdude/ompweb/issues"
+    "url": "https://github.com/lucaspdude/rocinante/issues"
   },
   "license": "MIT",
   "engines": {

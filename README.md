@@ -25,10 +25,10 @@ package in a single shot):
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.sh | sh
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/lucaspdude/ompweb/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/lucaspdude/rocinante/main/scripts/install.ps1 | iex
 ```
 
 The installer generates a random `ROCINANTE_SECRET` and stores it in
@@ -152,7 +152,7 @@ Rocinante is a Node-hosted Next.js app that drives your installed `omp` binary â
 ## Development
 
 ```bash
-git clone https://github.com/lucaspdude/ompweb
+git clone https://github.com/lucaspdude/rocinante
 cd ompweb
 npm install
 npm run dev          # http://127.0.0.1:30178
