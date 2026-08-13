@@ -184,10 +184,10 @@ ensure_launcher_symlink() {
     log "Re-install note: rocinante not on PATH yet. Add '${BIN_DIR}' to your PATH."
   fi
   mkdir -p "${BIN_DIR}"
-  # The launcher is bin/ocinante.js — the symlink target has the canonical
+  # The launcher is bin/rocinante.js — the symlink target is the canonical
   # 'rocinante' name so it matches the documented command.
-  ln -sf "${SHARE_DIR}/bin/ocinante.js" "${BIN_DIR}/rocinante"
-  log "Linked ${BIN_DIR}/rocinante -> ${SHARE_DIR}/bin/ocinante.js"
+  ln -sf "${SHARE_DIR}/bin/rocinante.js" "${BIN_DIR}/rocinante"
+  log "Linked ${BIN_DIR}/rocinante -> ${SHARE_DIR}/bin/rocinante.js"
 }
 
 main() {
