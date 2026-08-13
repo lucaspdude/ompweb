@@ -1,22 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { GitChangesPanel } from "./GitChangesPanel";
-import { RightSidebarRail, type RightSidebarTab } from "./RightSidebarRail";
-import { useI18n } from "@/lib/i18n";
+import { RightSidebarRail, type RightSidebarTab, type RightSidebarWidthState } from "./RightSidebarRail";
 
 const FILES_TAB: RightSidebarTab = "files";
-const CHANGES_TAB: RightSidebarTab = "changes";
-
-export type RightSidebarWidthState = "collapsed" | "default" | "wide";
 
 const WIDTH_BY_STATE: Record<RightSidebarWidthState, number> = {
   collapsed: 44,
-  default: 360,
-  wide: 540,
+  default: 560,
+  wide: 760,
 };
 
 const STORAGE_KEY = "rocinante:right-sidebar-state";
@@ -75,22 +72,44 @@ export function RightSidebar({
   }, [widthState]);
 
   const handleSelectTab = useCallback((tab: RightSidebarTab) => {
-    if (tab === activeTab && open && widthState !== "collapsed") {
-      setWidthState((prev) => {
-        if (prev === "default") return "wide";
-        if (prev === "wide") return "collapsed";
-        return "default";
-      });
-      return;
+    if (tab === activeTab) {
+      if (!open) {
+        // Re-opening from closed: jump straight to default width so
+        // the user sees the file tree, not the rail-only collapsed
+        // state. The previous design left the user with an empty 44px
+        // column and no obvious way to recover without a reload.
+        onOpenChange(true);
+        setWidthState("default");
+      } else {
+        setWidthState((prev) => {
+          if (prev === "collapsed") return "default";
+          if (prev === "default") return "wide";
+          if (prev === "wide") return "collapsed";
+          return "default";
+        });
+      }
+    } else {
+      // Different tab: switch to it, ensure open, expand if collapsed.
+      setActiveTab(tab);
+      if (!open) onOpenChange(true);
+      if (widthState === "collapsed") setWidthState("default");
     }
-    setActiveTab(tab);
-    if (!open) onOpenChange(true);
-    if (widthState === "collapsed") setWidthState("default");
   }, [activeTab, open, widthState, onOpenChange]);
 
+  const handleSetWidthState = useCallback((next: RightSidebarWidthState) => {
+    setWidthState(next);
+  }, []);
+
+  const handleCollapse = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+
   const activeFileTab = fileTabs.find((t) => t.id === activeFileTabId) ?? null;
-  const width = WIDTH_BY_STATE[widthState];
-  const showContent = open;
+  // The content panel is visible whenever the sidebar is open AND not
+  // collapsed to the rail-only state.
+  const showContent = open && widthState !== "collapsed";
+  // Width collapses to rail-only (44px) when the sidebar is closed.
+  const width = open ? WIDTH_BY_STATE[widthState] : WIDTH_BY_STATE.collapsed;
 
   return (
     <aside
@@ -102,7 +121,7 @@ export function RightSidebar({
         display: isMobile ? (open ? "flex" : "none") : "flex",
         flexDirection: "row",
         flexShrink: 0,
-        width: open ? width : 0,
+        width,
         minWidth: 0,
         borderLeft: "1px solid var(--border)",
         background: "var(--bg)",
@@ -112,7 +131,10 @@ export function RightSidebar({
     >
       <RightSidebarRail
         activeTab={activeTab}
+        widthState={widthState}
         onSelectTab={handleSelectTab}
+        onSetWidthState={handleSetWidthState}
+        onCollapse={handleCollapse}
         hasChanges={hasChanges}
         disabled={!selectedCwd}
       />
@@ -136,7 +158,12 @@ export function RightSidebar({
               explorerRefreshKey={explorerRefreshKey}
             />
           ) : (
-            <GitChangesPanel cwd={selectedCwd} onOpenFile={onOpenFile} onChangesCount={(count) => setHasChanges(count > 0)} key={`changes-${gitChangesRefreshKey}`} />
+            <GitChangesPanel
+              cwd={selectedCwd}
+              onOpenFile={onOpenFile}
+              onChangesCount={(count) => setHasChanges(count > 0)}
+              key={`changes-${gitChangesRefreshKey}`}
+            />
           )}
         </div>
       )}
@@ -170,6 +197,9 @@ function FilesTab({
   explorerRefreshKey,
 }: FilesTabProps) {
   const { t } = useI18n();
+  // FileExplorer exposes a handle for the upload-picker; we hold a ref
+  // so the FileExplorer instance is stable across renders (the
+  // upload button triggers a method on the instance).
   const fileExplorerRef = useRef<FileExplorerHandle | null>(null);
 
   if (!selectedCwd) {

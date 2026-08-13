@@ -1,24 +1,34 @@
 "use client";
 
-import { Files, GitBranch } from "lucide-react";
-import { translate, useI18n } from "@/lib/i18n";
+import { Files, GitBranch, PanelRight, PanelRightClose } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export type RightSidebarTab = "files" | "changes";
+export type RightSidebarWidthState = "collapsed" | "default" | "wide";
 
 interface Props {
   activeTab: RightSidebarTab;
+  widthState: RightSidebarWidthState;
   onSelectTab: (tab: RightSidebarTab) => void;
+  onSetWidthState: (state: RightSidebarWidthState) => void;
+  onCollapse: () => void;
   hasChanges: boolean;
   disabled?: boolean;
 }
 
-const TAB_DEFS: Array<{ id: RightSidebarTab; icon: typeof Files; labelKey: string; ariaKey: string }> = [
-  { id: "files", icon: Files, labelKey: "rightSidebar.tabs.files", ariaKey: "rightSidebar.tabs.filesAria" },
-  { id: "changes", icon: GitBranch, labelKey: "rightSidebar.tabs.changes", ariaKey: "rightSidebar.tabs.changesAria" },
+const TAB_DEFS: Array<{
+  id: RightSidebarTab;
+  Icon: typeof Files;
+  labelKey: string;
+  ariaKey: string;
+}> = [
+  { id: "files", Icon: Files, labelKey: "rightSidebar.tabs.files", ariaKey: "rightSidebar.tabs.filesAria" },
+  { id: "changes", Icon: GitBranch, labelKey: "rightSidebar.tabs.changes", ariaKey: "rightSidebar.tabs.changesAria" },
 ];
 
-export function RightSidebarRail({ activeTab, onSelectTab, hasChanges, disabled }: Props) {
+export function RightSidebarRail({ activeTab, widthState, onSelectTab, onSetWidthState, onCollapse, hasChanges, disabled }: Props) {
   const { t } = useI18n();
+  const collapsed = widthState === "collapsed";
   return (
     <div
       role="tablist"
@@ -35,7 +45,7 @@ export function RightSidebarRail({ activeTab, onSelectTab, hasChanges, disabled 
         alignItems: "center",
       }}
     >
-      {TAB_DEFS.map(({ id, icon: Icon, labelKey, ariaKey }) => {
+      {TAB_DEFS.map(({ id, Icon, labelKey, ariaKey }) => {
         const isActive = activeTab === id;
         const isDisabled = !!disabled;
         const showDot = id === "changes" && hasChanges;
@@ -46,7 +56,6 @@ export function RightSidebarRail({ activeTab, onSelectTab, hasChanges, disabled 
             role="tab"
             aria-selected={isActive}
             aria-label={t(ariaKey)}
-            aria-controls={`right-sidebar-tabpanel-${id}`}
             disabled={isDisabled}
             onClick={() => onSelectTab(id)}
             style={{
@@ -84,11 +93,35 @@ export function RightSidebarRail({ activeTab, onSelectTab, hasChanges, disabled 
         );
       })}
       <span style={{ flex: 1 }} />
+      <button
+        type="button"
+        aria-label={collapsed ? t("rightSidebar.expand") : t("rightSidebar.minimize")}
+        title={collapsed ? t("rightSidebar.expand") : t("rightSidebar.minimize")}
+        onClick={() => {
+          if (collapsed) {
+            onSetWidthState("default");
+          } else {
+            onCollapse();
+          }
+        }}
+        style={{
+          width: 32,
+          height: 32,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "none",
+          background: "transparent",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          borderRadius: 6,
+          padding: 0,
+        }}
+      >
+        {collapsed
+          ? <PanelRight size={16} strokeWidth={1.6} aria-hidden="true" />
+          : <PanelRightClose size={16} strokeWidth={1.6} aria-hidden="true" />}
+      </button>
     </div>
   );
-}
-
-export function rightSidebarTabLabel(tab: RightSidebarTab): string {
-  const key = tab === "files" ? "rightSidebar.tabs.files" : "rightSidebar.tabs.changes";
-  return translate(key);
 }
