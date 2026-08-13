@@ -1,16 +1,16 @@
-# omp-web - Development Notes
+# Rocinante - Development Notes
 
 ## Quick Start
 
 ```bash
-npm run dev   # port 30177
+npm run dev   # port 30178 (Turbopack); npm start uses 30177
 ```
 
 Typecheck: `node_modules/.bin/tsc --noEmit`  
 Lint: `npm run lint`  
 **Never run `next build` during dev** — pollutes `.next/` and breaks `npm run dev`.
 
-The dev server needs the `omp` binary installed (on `PATH`, or set `OMP_WEB_OMP_BIN`).
+The dev server needs the `omp` binary installed (on `PATH`, or set `ROCINANTE_OMP_BIN (or legacy OMP_WEB_OMP_BIN)`).
 All live-agent features go through it; session browsing works without it.
 
 ---

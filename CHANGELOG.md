@@ -4,6 +4,45 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.0] — 2026-08-13
+
+### Added
+
+- **Access-key protection** — opt-in UI lock behind an HMAC-SHA256 token
+  cookie. The installer writes a random `ROCINANTE_SECRET` to
+  `${SHARE_DIR}/.env` (chmod 600); the first-run onboarding wizard offers
+  a one-click toggle to require the key. Sessions are 24h sliding with a
+  7-day hard cap. Settings → Security exposes rotate + per-session revoke.
+  Replaces the legacy `ROCINANTE_PASSWORD` HTTP Basic Auth path.
+- **CLI installer (Settings → Developer tools → CLIs)** — install and sign
+  in to **Azure CLI** and **GitHub CLI** without leaving the UI. Streams
+  the install log via SSE and surfaces the device-code URL + token inline.
+- **Git SSH keys (Settings → Developer tools → Git SSH keys)** — generate
+  `ed25519` keys for GitHub, GitLab, and Azure DevOps, paste the public
+  key on the provider's site, and test the connection with
+  `ssh -T -o BatchMode=yes`. Matches the private key to the right
+  `Host` block in `~/.ssh/config` per provider (with `IdentitiesOnly yes`).
+- **SSH server connections (Settings → Developer tools → SSH servers)** —
+  register generic SSH servers (alias + host + user + port + key) the
+  same way. Public-key auth only; password auth is documented as a
+  v1 limitation.
+- **Settings → Security tab** — visual UI for the access-key toggle
+  (enable / disable / rotate / list active sessions / revoke).
+- **Release workflow** — `.github/workflows/release.yml` triggers on
+  push to `main`, reads the version from `package.json`, and publishes a
+  GitHub Release with auto-generated notes when the tag doesn't exist
+  yet. To ship a release, bump `package.json` and merge.
+
+### Changed
+
+- `package.json` URLs now point to `lucaspdude/ompweb` (the fork). The
+  `OMP_WEB_OMP_BIN` env var is still accepted as a legacy alias for
+  `ROCINANTE_OMP_BIN`.
+- `npm start` continues to use port 30177 (Turbopack `npm run dev` uses
+  30178). Both are documented.
+- README + CONTRIBUTING rebrand to "Rocinante"; the legacy
+  `omp-web` identifiers in `localStorage` keys are preserved for
+  backward compatibility.
 
 ## [0.3.0] — 2026-08-13 (first release)
 

@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { NextResponse } from "next/server";
+import { isAuthEnabled } from "@/lib/auth-token";
 import { findOmpBin, getOmpVersion } from "@/lib/rocinante/rocinante-cli";
 import { getAgentDir, getSettingsPath, getModelsConfigPath } from "@/lib/omp/paths";
 import { runUtilityCommand } from "@/lib/omp/rpc-utility";
@@ -35,6 +36,7 @@ interface OnboardingStatus {
     authenticated: boolean;
   }>;
   needsOnboarding: boolean;
+  securityEnabled: boolean;
   lastCompletedStep: number;
 }
 
@@ -130,6 +132,7 @@ export async function GET(request: Request) {
       || (providers.length > 0 && authenticatedCount === 0)
     ),
     lastCompletedStep,
+    securityEnabled: isAuthEnabled(),
   };
 
   return NextResponse.json(status);

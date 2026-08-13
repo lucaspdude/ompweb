@@ -19,6 +19,7 @@ export interface OnboardingStatus {
   configFile: { exists: boolean; hasOnboarded: boolean };
   modelsFile: { exists: boolean; providerCount: number };
   providers: OnboardingProvider[];
+  securityEnabled: boolean;
   needsOnboarding: boolean;
   lastCompletedStep: number;
 }
