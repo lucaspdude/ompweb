@@ -4,6 +4,27 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.3] — 2026-08-13
+
+### Fixed
+
+- **\`app/api/security/sessions/route.ts\` exported \`registerSession\`**
+  so the auth login route could call it. Next.js 16's strict route
+  type-check rejects any export other than GET/POST/PUT/DELETE/PATCH/
+  HEAD/OPTIONS + the \`config\`/\`dynamic\`/\`revalidate\` flags, so
+  the build aborts with \`Property 'registerSession' is incompatible
+  with index signature\`. That error routes the install through the
+  dev-fallback branch and the symlink target ends up pointing at the
+  dev server, not the production build. Move the session map +
+  \`registerSession\` to a new \`lib/security-sessions.ts\` (with the
+  shared \`ActiveSession\` type in \`lib/auth-token-types.ts\`) and
+  re-import from the auth login route. The sessions route is now a
+  pure route file.
+
+Verified end-to-end on the harness host: a clean install of v0.4.3
+completes \`next build\` without errors, writes the production
+bundle to \`.next/\`, and links the production launcher.
+
 ## [0.4.2] — 2026-08-13
 
 ### Fixed
