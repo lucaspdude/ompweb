@@ -1,23 +1,23 @@
-# Contributing to omp-web
+# Contributing to Rocinante
 
 Thanks for your interest in contributing!
 
 ## Setup
 
 - Node.js 22.19.0 or newer
-- The [omp](https://github.com/can1357/oh-my-pi) binary on your `PATH` (or set `OMP_WEB_OMP_BIN`)
+ROCINANTE_OMP_BIN)
 
 ```bash
 npm install
-npm run dev   # http://127.0.0.1:30177
+npm run dev   # http://127.0.0.1:30178
 ```
 
 ## Checks (must pass before submitting)
 
 ```bash
-npx tsc --noEmit                                   # type check
+npm run typecheck                              # type check
 npm run lint                                       # ESLint, zero warnings
-node --test lib/*.test.mjs components/*.test.mjs   # unit tests
+node --test lib/*.test.mjs lib/omp/*.test.mjs components/*.test.mjs   # unit tests
 ```
 
 Avoid `npm run build` during local development — it writes to `.next/` and

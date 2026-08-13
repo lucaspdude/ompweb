@@ -1,0 +1,27 @@
+Rocinante — fork attribution and acknowledgments
+
+This software is a fork of the work of many contributors.
+
+Upstream lineage:
+
+- pi-web by agegr (https://github.com/agegr/pi-web), MIT — original web UI
+- ompweb by kahme247 (https://github.com/kahme247/ompweb), MIT — adapted for
+  the oh-my-pi (omp) coding agent
+- Rocinante by lucaspdude (https://github.com/lucaspdude/ompweb), MIT — personal
+  fork rebranded as Rocinante; adds the first-run onboarding wizard, install
+  packaging, right sidebar (Files + Changes), Brazilian Portuguese
+  localization, access-key protection, CLI installer (Azure CLI + GitHub CLI),
+  Git SSH key management (GitHub / GitLab / Azure DevOps), and generic SSH
+  server connections.
+
+Rocinante is a web UI for the `omp` (oh-my-pi) coding agent. The underlying
+`omp` binary lives at https://github.com/can1357/oh-my-pi and is a separate
+product by the oh-my-pi maintainer; Rocinante only drives it via RPC.
+
+UI primitives are built on @base-ui/react (MIT) and lucide-react (ISC/0BSD).
+
+## Credits
+
+Thanks to the original pi-web contributors, to the oh-my-pi community for the
+underlying agent, and to everyone who has filed issues, sent PRs, or
+reviewed this fork.

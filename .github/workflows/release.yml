@@ -1,0 +1,97 @@
+name: release
+
+# On push to main, read the version from package.json, ensure the
+# matching `vX.Y.Z` tag exists, and publish a GitHub Release. The
+# install scripts (`scripts/install.{sh,ps1}`) consume the
+# auto-generated source tarball at the tag, so this is the single
+# trigger point for shipping a new Rocinante release.
+#
+# The flow:
+#   1. The maintainer merges to main with a bumped package.json
+#      version (e.g. 0.4.0). This workflow picks it up.
+#   2. The job checks whether the tag `v<version>` already exists.
+#   3. If not, it creates the tag at HEAD and publishes a release
+#      with auto-generated notes.
+#
+# To ship a release, just bump `package.json` and merge to main. To
+# skip a release for a given push, leave the version alone and the
+# workflow is a no-op (no tag is created).
+#
+# Manual override: `workflow_dispatch` accepts a `version` input.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override the release version (defaults to package.json)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    name: publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT_VERSION="${{ inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "version=${INPUT_VERSION#v}" >> "$GITHUB_OUTPUT"
+          else
+            PKG_VERSION="$(node -p "require('./package.json').version")"
+            echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+          TAG="v$(cat "$GITHUB_OUTPUT" | grep '^version=' | cut -d= -f2)"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=$TAG from $([ -n "$INPUT_VERSION" ] && echo 'workflow_dispatch' || echo 'package.json')"
+
+      - name: Skip if tag already exists
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        if: steps.check.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create release
+        if: steps.check.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Rocinante ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          fail_on_unmatched_files: true

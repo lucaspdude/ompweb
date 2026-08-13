@@ -1,17 +1,17 @@
-# ompweb
+# Rocinante
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-[oh-my-pi (omp) コーディングエージェント](https://github.com/can1357/oh-my-pi)のローカル Web UI です。ompweb はローカルの omp セッションファイルを読み込み、セッションの閲覧、リアルタイムチャット、モデル設定、スキル管理、プロジェクトファイルのプレビューを行えるブラウザワークスペースを提供します。
+[oh-my-pi (omp) コーディングエージェント](https://github.com/can1357/oh-my-pi)のローカル Web UI です。Rocinante はローカルの omp セッションファイルを読み込み、セッションの閲覧、リアルタイムチャット、モデル設定、スキル管理、プロジェクトファイルのプレビューを行えるブラウザワークスペースを提供します。
 
-![ompweb — ライトテーマ](docs/screenshot-light.png)
+[![ライトテーマ](docs/screenshot-light.png]
 
 <details>
 <summary>ダークテーマとコマンドパレット</summary>
 
-![ompweb — ダークテーマ](docs/screenshot-dark.png)
+[![ダークテーマ](docs/screenshot-dark.png]
 
-![ompweb — コマンドパレット](docs/screenshot-palette.png)
+[![コマンドパレット](docs/screenshot-palette.png]
 
 </details>
 
@@ -35,7 +35,7 @@ npm install -g @kahme247/ompweb
 ompweb
 ```
 
-続いて [http://127.0.0.1:30177](http://127.0.0.1:30177) を開きます。サーバーの準備が整うと、CLI はブラウザを自動的に開こうとします。ompweb はデフォルトで `127.0.0.1` で待ち受けます。
+続いて [http://127.0.0.1:30177](http://127.0.0.1:30177) を開きます。サーバーの準備が整うと、CLI はブラウザを自動的に開こうとします。Rocinante はデフォルトで `127.0.0.1` で待ち受けます。
 
 **オプション:**
 
@@ -82,7 +82,7 @@ OMP_WEB_NO_OPEN=1 ompweb        # バックグラウンドサービスとして�
 
 ## アーキテクチャ
 
-ompweb は Node 上でホストされる Next.js アプリで、インストール済みの `omp` バイナリを操作します。エージェント自体は同梱していません:
+Rocinante は Node 上でホストされる Next.js アプリで、インストール済みの `omp` バイナリを操作します。エージェント自体は同梱していません:
 
 - **ライブセッション**: `omp --mode rpc-ui`（stdio 上の NDJSON）を、アクティブなセッションごとに 1 つの子プロセスとして起動します。そのため、エージェントのバージョンは常にインストールされているものと完全に一致します。
 - **セッション閲覧**: omp のセッションファイル（`~/.omp/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`）を直接読み込みます。タイトル変更、アーカイブ、削除は、OMP のライブ書き込みと競合しないよう保護されたネイティブファイルのメンテナンス操作です。
@@ -112,7 +112,7 @@ node --test lib/*.test.mjs components/*.test.mjs   # テスト実行
 
 ## 国際化
 
-ompweb は英語、簡体字中国語（简体中文）、日本語をサポートし、3 言語で UI 全体の翻訳文字列を提供しています。言語は `navigator.language` から自動検出され、トップバーの言語メニューから実行時に切り替えできます。選択はセッション間で永続化されます。
+Rocinante は英語、簡体字中国語（简体中文）、日本語をサポートし、3 言語で UI 全体の翻訳文字列を提供しています。言語は `navigator.language` から自動検出され、トップバーの言語メニューから実行時に切り替えできます。選択はセッション間で永続化されます。
 
 - 辞書ファイル: `lib/i18n/locales/{en,zh-CN,ja}.json`
 - フレームワーク: `lib/i18n/index.tsx` — `useSyncExternalStore` ベースの軽量ストア、`{var}` 補間と複数形サポート（`.one`/`.other`）
@@ -127,7 +127,7 @@ ompweb は英語、簡体字中国語（简体中文）、日本語をサポー�
 
 ## クレジット
 
-ompweb は [agegr/pi-web](https://github.com/agegr/pi-web)（MIT）のフォークです。pi-web は [badlogic/pi-mono](https://github.com/badlogic/pi-mono) の pi コーディングエージェント向け Web UI で、これを [can1357/oh-my-pi](https://github.com/can1357/oh-my-pi) 向けに適合させたものです。
+Rocinante は [agegr/pi-web](https://github.com/agegr/pi-web)（MIT）のフォークです。pi-web は [badlogic/pi-mono](https://github.com/badlogic/pi-mono) の pi コーディングエージェント向け Web UI で、これを [can1357/oh-my-pi](https://github.com/can1357/oh-my-pi) 向けに適合させたものです。
 
 ## ライセンス
 
