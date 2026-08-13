@@ -587,6 +587,36 @@ export function AppShell() {
     // On mobile the file panel is full-screen; close the drawer so it shows.
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
+  // Phase 2: detect first-run / re-detect onboarding need. Runs once on
+  // mount; the modal then self-manages via the localStorage resume key.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/onboarding/status?step=0", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (data.needsOnboarding) {
+          setOnboardingNeeds(true);
+          setOnboardingWizardMode(false);
+          setOnboardingOpen(true);
+        } else {
+          setOnboardingNeeds(false);
+        }
+      })
+      .catch(() => { /* ignore — onboarding is best-effort */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Re-runnable setup wizard (D4): any code path can dispatch
+  // "rocinante:open-onboarding-wizard" to open the modal in
+  // wizardMode. SettingsConfig header wires its own button to this
+  // event; the topbar already has a direct click handler.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onWizard = () => { setOnboardingWizardMode(true); setOnboardingOpen(true); };
+    window.addEventListener("rocinante:open-onboarding-wizard", onWizard);
+    return () => window.removeEventListener("rocinante:open-onboarding-wizard", onWizard);
+  }, []);
 
   const handleOpenLinkedFile = useCallback((filePath: string) => {
     handleOpenFile(filePath, getFileName(filePath), selectedSession?.id ?? null);
