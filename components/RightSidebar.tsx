@@ -224,6 +224,7 @@ function FilesTab({
     );
   }
 
+  const showFile = !!activeFileTab?.filePath;
   return (
     <>
       {fileTabs.length > 0 && (
@@ -238,18 +239,16 @@ function FilesTab({
           </div>
         </div>
       )}
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        {activeFileTab?.filePath ? (
-          <FileViewer
-            filePath={activeFileTab.filePath}
-            cwd={selectedCwd}
-            sourceSessionId={activeFileTab.sourceSessionId ?? sourceSessionId ?? null}
-            gitRefreshKey={explorerRefreshKey}
-            onMentionLines={onMentionLines}
-            onOpenFile={(filePath) => onOpenFile(filePath, filePath.split("/").pop() || filePath)}
-          />
-        ) : (
-          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "row", minHeight: 0 }}>
+        {/*
+          When a file is open, render the file tree and the file viewer
+          side by side so the user can see both at once. The previous
+          design showed only the viewer (hiding the tree), which the
+          user reported as a UX gap. With no file open, the tree fills
+          the whole space.
+         */}
+        {showFile && (
+          <div style={{ flex: "0 0 35%", minWidth: 160, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
             <div style={{ flex: 1, overflow: "auto" }}>
               <FileExplorer
                 ref={fileExplorerRef}
@@ -260,6 +259,27 @@ function FilesTab({
             </div>
           </div>
         )}
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {showFile ? (
+            <FileViewer
+              filePath={activeFileTab!.filePath!}
+              cwd={selectedCwd}
+              sourceSessionId={activeFileTab!.sourceSessionId ?? sourceSessionId ?? null}
+              gitRefreshKey={explorerRefreshKey}
+              onMentionLines={onMentionLines}
+              onOpenFile={(filePath) => onOpenFile(filePath, filePath.split("/").pop() || filePath)}
+            />
+          ) : (
+            <div style={{ flex: 1, overflow: "auto" }}>
+              <FileExplorer
+                ref={fileExplorerRef}
+                cwd={selectedCwd}
+                onOpenFile={onOpenFile}
+                refreshKey={explorerRefreshKey}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
