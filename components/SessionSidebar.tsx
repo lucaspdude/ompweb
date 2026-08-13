@@ -4,16 +4,20 @@ import { memo, useEffect, useLayoutEffect, useState, useCallback, useRef, useMem
 import type { ManagedProject, SessionInfo } from "@/lib/types";
 import { translate, useI18n } from "@/lib/i18n";
 import { formatApiError } from "@/lib/i18n/api-error";
-import { DirectoryPicker } from "./DirectoryPicker";
+import { CreateProjectDialog } from "./CreateProjectDialog";
+import { EditProjectDialog } from "./EditProjectDialog";
+import { CloneProjectDialog } from "./CloneProjectDialog";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
-import { Tooltip } from "./ui/primitives";
+import { Tooltip, Collapsible, CollapsibleTrigger, CollapsiblePanel } from "./ui/primitives";
 import { toast } from "./ui/toast";
+import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuTrigger } from "./ui/context-menu";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { clearLastOpenSession, setLastOpenSession, workspaceKeyOf } from "@/lib/workspace-memory";
-import { groupSessionsByProject, projectActivityCounts, sortManagedProjects } from "@/lib/project-ordering";
+import { applyManualOrder, effectiveProjectPath, groupSessionsByProject, projectActivityCounts, sortManagedProjects } from "@/lib/project-ordering";
+import { partitionByActivity, readActiveSessionWindowMs } from "@/lib/active-session-window";
 import { Archive, Check, ChevronDown, ChevronRight, FileUp, GitBranch, Pencil, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 
-declare global {
+ declare global {
   interface Window {
     piDesktop?: {
       selectDirectory: () => Promise<string | null>;
@@ -114,8 +118,38 @@ function saveExpandedProjects(paths: Set<string>): void {
   }
 }
 
-/** Substitute the home dir prefix with ~ (no path truncation — see PathLabel) */
-function displayCwd(cwd: string, homeDir?: string): string {
+/** Persisted manual project order (D18). Stored as a JSON array of project
+ *  paths; null when nothing was stored, in which case the sidebar falls back
+ *  to the auto-sort (by activity, then most-recently-added). */
+const PROJECT_ORDER_STORAGE_KEY = "omp-web:project-order";
+
+function loadManualOrder(): string[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PROJECT_ORDER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((path): path is string => typeof path === "string" && path.length > 0);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveManualOrder(paths: readonly string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PROJECT_ORDER_STORAGE_KEY, JSON.stringify([...paths]));
+  } catch {
+    // ignore storage quota / privacy-mode errors
+  }
+}
+
+
+ /** Substitute the home dir prefix with ~ (no path truncation — see PathLabel) */
+ function displayCwd(cwd: string, homeDir?: string): string {
   return (homeDir && cwd.startsWith(homeDir)) ? "~" + cwd.slice(homeDir.length) : cwd;
 }
 
@@ -378,9 +412,20 @@ function RocinanteTitle() {
   const [addProjectError, setAddProjectError] = useState<string | null>(null);
   // Per-project expansion, persisted to localStorage (null = nothing stored).
   const [expandedProjects, setExpandedProjects] = useState<Set<string> | null>(() => loadExpandedProjects());
+  // Manual project order (D18), persisted to localStorage (null = auto-sort).
+  const [manualOrder, setManualOrder] = useState<string[] | null>(() => loadManualOrder());
+  // Edit-project dialog state.
+  const [editTarget, setEditTarget] = useState<ManagedProject | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  // Clone-project dialog state.
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloneBusy, setCloneBusy] = useState(false);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  // Project currently being archived/unarchived — serializes per-row busy.
+  const [archiveBusyPath, setArchiveBusyPath] = useState<string | null>(null);
   // Project currently being removed (hide) — serializes remove requests.
   const [removeProjectPath, setRemoveProjectPath] = useState<string | null>(null);
-  // Worktree switcher state
   const [worktreeState, setWorktreeState] = useState<WorktreeState | null>(null);
   const [wtDropdownOpen, setWtDropdownOpen] = useState(false);
   const [wtNewOpen, setWtNewOpen] = useState(false);
@@ -473,6 +518,12 @@ function RocinanteTitle() {
     if (expandedProjects === null) return;
     saveExpandedProjects(expandedProjects);
   }, [expandedProjects]);
+  // Persist manual project order; null means the auto-sort is in effect.
+  useEffect(() => {
+    if (manualOrder === null) return;
+    saveManualOrder(manualOrder);
+  }, [manualOrder]);
+
 
   // Persist unread markers so they survive a browser refresh before the user
   // has actually opened the completed session.
@@ -660,15 +711,26 @@ function RocinanteTitle() {
   // ---- Derived project list ---------------------------------------------------
   const selectedProject = useMemo(() => projectRootFor(selectedCwd), [projectRootFor, selectedCwd]);
   const sortedProjects = useMemo(() => sortManagedProjects(projects, allSessions), [projects, allSessions]);
+  const activeProjects = useMemo(
+    () => applyManualOrder(sortedProjects.filter((p) => !p.archived), manualOrder),
+    [sortedProjects, manualOrder],
+  );
+  const archivedProjects = useMemo(
+    () => applyManualOrder(sortedProjects.filter((p) => p.archived === true), manualOrder),
+    [sortedProjects, manualOrder],
+  );
+  const otherSessions = useMemo(
+    () => allSessions.filter((session) => effectiveProjectPath(session, activeProjects) === null),
+    [allSessions, activeProjects],
+  );
   const sessionsByProject = useMemo(
-    () => groupSessionsByProject(sortedProjects, allSessions),
-    [sortedProjects, allSessions],
+    () => groupSessionsByProject(activeProjects, allSessions),
+    [activeProjects, allSessions],
   );
   const projectActivity = useMemo(
-    () => projectActivityCounts(allSessions, runningSessionIds, unreadSessionIds),
-    [allSessions, runningSessionIds, unreadSessionIds],
+    () => projectActivityCounts(allSessions, runningSessionIds, unreadSessionIds, activeProjects),
+    [allSessions, runningSessionIds, unreadSessionIds, activeProjects],
   );
-
   // Drop persisted expansion keys whose project no longer exists (removed or
   // vanished), so the storage stays bounded to real projects. Only runs after
   // the first project fetch — an empty list mid-load must never wipe storage.
@@ -684,6 +746,22 @@ function RocinanteTitle() {
       return next;
     });
   }, [expandedProjects, sortedProjects]);
+
+  // Drop manual-order entries whose project no longer exists (removed or
+  // archived-forever), so the storage stays bounded to real projects. Only
+  // runs after the first project fetch — an empty list mid-load must never
+  // wipe storage.
+  useEffect(() => {
+    if (manualOrder === null || !projectsLoadedRef.current) return;
+    const known = new Set(sortedProjects.map((p) => p.path));
+    const stale = manualOrder.filter((path) => !known.has(path));
+    if (stale.length === 0) return;
+    setManualOrder((prev) => {
+      if (!prev) return prev;
+      const next = prev.filter((path) => known.has(path));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [manualOrder, sortedProjects]);
 
   // True while the auto-selected project was chosen before sessions loaded
   // (activity ordering unknown); cleared by any manual activation.
@@ -730,9 +808,11 @@ function RocinanteTitle() {
     if (expandedProjects === null) expandProject(project);
   }, [selectedProject, expandedProjects, expandProject]);
 
-  const commitAddProject = useCallback(async (candidate?: string) => {
-    const path = (candidate ?? "").trim();
-    if (!path || addProjectBusy) return;
+  const commitAddProject = useCallback(async (input: { cwd: string; name: string; description: string }) => {
+    const cwd = input.cwd.trim();
+    const name = input.name.trim();
+    const description = input.description.trim();
+    if (!cwd || !name || addProjectBusy) return;
 
     setAddProjectBusy(true);
     setAddProjectError(null);
@@ -740,7 +820,7 @@ function RocinanteTitle() {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd: path }),
+        body: JSON.stringify({ cwd, name, description }),
       });
       const data = await res.json().catch(() => ({})) as { project?: ManagedProject; error?: string; code?: string };
       if (!res.ok || data.error || !data.project) {
@@ -758,6 +838,117 @@ function RocinanteTitle() {
       setAddProjectBusy(false);
     }
   }, [addProjectBusy, loadProjects, expandProject]);
+
+  /** User dragged `draggedPath` over `targetPath` — move the dragged project
+   *  to sit just before the target in the manual order. If no manual order
+   *  is established yet, seed one from the current sortedProjects. */
+  const handleReorder = useCallback((draggedPath: string, targetPath: string) => {
+    if (draggedPath === targetPath) return;
+    setManualOrder((prev) => {
+      const current = prev ?? sortedProjects.map((p) => p.path);
+      const without = current.filter((path) => path !== draggedPath);
+      const targetIdx = without.indexOf(targetPath);
+      if (targetIdx < 0) return [...without, draggedPath];
+      return [...without.slice(0, targetIdx), draggedPath, ...without.slice(targetIdx)];
+    });
+  }, [sortedProjects]);
+
+  /** Toggle archived flag on a project. PATCH /api/projects; refetch on
+   *  success so the new archived status flows into the split between active
+   *  and archived sections. */
+  const handleArchiveProject = useCallback(async (projectPath: string) => {
+    if (archiveBusyPath) return;
+    const current = projects.find((p) => p.path === projectPath);
+    if (!current) return;
+    const nextArchived = !current.archived;
+    setArchiveBusyPath(projectPath);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd: projectPath, archived: nextArchived }),
+      });
+      const data = await res.json().catch(() => ({})) as { project?: ManagedProject; error?: string; code?: string };
+      if (!res.ok || data.error || !data.project) {
+        toast.error(formatApiError({ ...data, error: data.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      toast.success(t(nextArchived ? "projects.contextMenu.archiveDone" : "projects.contextMenu.unarchiveDone"));
+      // If the user just archived the active project, drop focus onto the
+      // next active one so the sidebar stays usable.
+      if (nextArchived && selectedProject === projectPath) {
+        const remaining = sortedProjects.filter((p) => p.path !== projectPath && !p.archived);
+        const next = remaining[0];
+        setSelectedCwd(next ? next.path : null);
+      }
+      await loadProjects();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setArchiveBusyPath(null);
+    }
+  }, [archiveBusyPath, projects, t, selectedProject, sortedProjects, loadProjects]);
+
+  /** Open the edit dialog for the project at the given path. */
+  const handleOpenEdit = useCallback((projectPath: string) => {
+    const target = projects.find((p) => p.path === projectPath);
+    if (!target) return;
+    setEditError(null);
+    setEditTarget(target);
+  }, [projects]);
+
+  /** Submit the edit dialog. PATCH /api/projects; close dialog on success. */
+  const handleEditSubmit = useCallback(async (input: { name: string; description: string; archived: boolean }) => {
+    if (!editTarget || editBusy) return;
+    setEditBusy(true);
+    setEditError(null);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd: editTarget.path, name: input.name, description: input.description, archived: input.archived }),
+      });
+      const data = await res.json().catch(() => ({})) as { project?: ManagedProject; error?: string; code?: string };
+      if (!res.ok || data.error || !data.project) {
+        setEditError(formatApiError({ ...data, error: data.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      setEditTarget(null);
+      await loadProjects();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEditBusy(false);
+    }
+  }, [editTarget, editBusy, loadProjects]);
+
+  /** Submit the clone dialog. POST /api/projects/clone; on success activate
+   *  the freshly-cloned project and expand it. */
+  const handleCloneSubmit = useCallback(async (input: { url: string; folderName: string; parentPath: string; description: string }) => {
+    if (cloneBusy) return;
+    setCloneBusy(true);
+    setCloneError(null);
+    try {
+      const res = await fetch("/api/projects/clone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = await res.json().catch(() => ({})) as { project?: ManagedProject; error?: string; code?: string };
+      if (!res.ok || data.error || !data.project) {
+        setCloneError(formatApiError({ ...data, error: data.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      setCloneOpen(false);
+      await loadProjects();
+      setSelectedCwd(data.project.path);
+      expandProject(data.project.path);
+    } catch (e) {
+      setCloneError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCloneBusy(false);
+    }
+  }, [cloneBusy, loadProjects, expandProject]);
 
   const handleRemoveProject = useCallback(async (projectPath: string) => {
     if (removeProjectPath) return;
@@ -974,16 +1165,39 @@ function RocinanteTitle() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {addProjectOpen && (
-        <DirectoryPicker
+        <CreateProjectDialog
+          open={addProjectOpen}
+          onOpenChange={(open) => {
+            setAddProjectOpen(open);
+            if (!open) setAddProjectError(null);
+          }}
           busy={addProjectBusy}
           error={addProjectError}
-          onCancel={() => {
-            setAddProjectOpen(false);
-            setAddProjectError(null);
-          }}
-          onSelect={(path) => void commitAddProject(path)}
+          onSubmit={(input) => void commitAddProject(input)}
         />
       )}
+      {editTarget && (
+        <EditProjectDialog
+          open={editTarget !== null}
+          onOpenChange={(open) => { if (!open) setEditTarget(null); }}
+          busy={editBusy}
+          error={editError}
+          project={{
+            path: editTarget.path,
+            name: editTarget.name ?? "",
+            description: editTarget.description ?? "",
+            archived: editTarget.archived === true,
+          }}
+          onSubmit={handleEditSubmit}
+        />
+      )}
+      <CloneProjectDialog
+        open={cloneOpen}
+        onOpenChange={(open) => { if (!open) setCloneError(null); setCloneOpen(open); }}
+        busy={cloneBusy}
+        error={cloneError}
+        onSubmit={handleCloneSubmit}
+      />
       {/* Header */}
       <div
         style={{
@@ -1163,25 +1377,7 @@ function RocinanteTitle() {
               <Plus size={14} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
-
-          {loading && (
-            <div style={{ padding: "10px 4px", color: "var(--text-muted)", fontSize: 12 }}>
-              {t("sessionSidebar.loading")}
-            </div>
-          )}
-          {projectsError && (
-            <div style={{ padding: "10px 4px", color: "var(--accent)", fontSize: 12 }}>{projectsError}</div>
-          )}
-          {error && (
-            <div style={{ padding: "10px 4px", color: "var(--accent)", fontSize: 12 }}>{error}</div>
-          )}
-          {!loading && !projectsError && !error && sortedProjects.length === 0 && (
-            <div style={{ padding: "10px 4px", color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>
-              {t("projects.noProjects")}
-            </div>
-          )}
-
-          {sortedProjects.map((project) => (
+          {activeProjects.map((project) => (
             <ProjectRow
               key={project.path}
               project={project}
@@ -1202,10 +1398,49 @@ function RocinanteTitle() {
               onSessionDeleted={handleSessionDeleted}
               activeWorktreeSwitcher={activeProjectSwitcher}
               homeDir={homeDir}
+              onReorder={handleReorder}
+              onArchive={handleArchiveProject}
+              onEdit={handleOpenEdit}
+              onClone={() => setCloneOpen(true)}
+              archiveBusy={archiveBusyPath === project.path}
             />
           ))}
         </div>
 
+          {otherSessions.length > 0 && (
+            <OtherSessionsGroup
+              sessions={otherSessions}
+              selectedSessionId={selectedSessionId}
+              runningSessionIds={runningSessionIds}
+              unreadSessionIds={unreadSessionIds}
+              relativeTimeNow={relativeTimeNow}
+              onSelectSession={handleSelectSessionFromList}
+              onRenamed={loadSessions}
+              onSessionDeleted={handleSessionDeleted}
+            />
+          )}
+          {archivedProjects.length > 0 && (
+            <ArchivedProjectsSection
+              projects={archivedProjects}
+              activity={projectActivity}
+              sessionsByProject={sessionsByProject}
+              selectedProject={selectedProject}
+              expandedProjectPaths={expandedProjectPaths}
+              activateProject={activateProject}
+              toggleProjectExpanded={toggleProjectExpanded}
+              handleRemoveProject={handleRemoveProject}
+              removeProjectPath={removeProjectPath}
+              selectedSessionId={selectedSessionId}
+              runningSessionIds={runningSessionIds}
+              unreadSessionIds={unreadSessionIds}
+              relativeTimeNow={relativeTimeNow}
+              handleSelectSessionFromList={handleSelectSessionFromList}
+              loadSessions={loadSessions}
+              handleSessionDeleted={handleSessionDeleted}
+              activeProjectSwitcher={activeProjectSwitcher}
+              homeDir={homeDir}
+            />
+          )}
       {/* File Explorer section */}
       {(selectedCwdProp || selectedCwd) && (
         <div
@@ -1338,6 +1573,11 @@ interface ProjectRowProps {
   onSessionDeleted?: (id: string) => void;
   activeWorktreeSwitcher?: ReactNode;
   homeDir: string;
+  onReorder?: (draggedPath: string, targetPath: string) => void;
+  onArchive?: (path: string) => void;
+  onEdit?: (path: string) => void;
+  onClone?: () => void;
+  archiveBusy?: boolean;
 }
 
 /** One project in the sidebar: a card row matching the session items' visual
@@ -1363,12 +1603,19 @@ function ProjectRow({
   onSessionDeleted,
   activeWorktreeSwitcher,
   homeDir,
+  onReorder,
+  onArchive,
+  onEdit,
+  onClone,
+  archiveBusy = false,
 }: ProjectRowProps) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [focusWithin, setFocusWithin] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const label = projectLabel(project.path);
+  const [dropTarget, setDropTarget] = useState(false);
+  const reorderable = Boolean(onReorder);
+  const label = project.name?.trim() || projectLabel(project.path);
   const hasActivity = Boolean(activity && (activity.running > 0 || activity.unread > 0));
   const hiddenCount = tree.length - MAX_PROJECT_SESSIONS;
   const visibleRoots = hiddenCount > 0 && !showAllSessions
@@ -1377,10 +1624,42 @@ function ProjectRow({
   const showActions = hovered || focusWithin;
 
   return (
-    <section className="sidebar-project" style={{ marginBottom: isExpanded ? 8 : 4 }}>
+    <ContextMenuRoot>
+      <ContextMenuTrigger
+        render={
+          <section
+            className="sidebar-project"
+            draggable={reorderable}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", project.path);
+            }}
+            onDragOver={(event) => {
+              if (!reorderable) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              if (!dropTarget) setDropTarget(true);
+            }}
+            onDragLeave={() => setDropTarget(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDropTarget(false);
+              const dragged = event.dataTransfer.getData("text/plain");
+              if (dragged && dragged !== project.path) onReorder?.(dragged, project.path);
+            }}
+            style={{
+              marginBottom: isExpanded ? 8 : 4,
+              cursor: reorderable ? "grab" : undefined,
+              outline: dropTarget ? "2px dashed var(--accent)" : "none",
+              outlineOffset: dropTarget ? -2 : 0,
+            }}
+          />
+        }
+      >
       <div
         className="sidebar-project-header"
-        onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onFocus={() => setFocusWithin(true)}
         onBlur={(e) => {
@@ -1550,10 +1829,250 @@ function ProjectRow({
           )}
         </div>
       )}
-    </section>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          label={project.archived ? t("projects.contextMenu.unarchive") : t("projects.contextMenu.archive")}
+          onClick={() => onArchive?.(project.path)}
+          disabled={archiveBusy}
+        />
+        <ContextMenuItem
+          label={t("projects.contextMenu.clone")}
+          onClick={() => onClone?.()}
+        />
+        <ContextMenuItem
+          label={t("projects.contextMenu.edit")}
+          onClick={() => onEdit?.(project.path)}
+        />
+      </ContextMenuContent>
+    </ContextMenuRoot>
+  );
+}
+interface OtherSessionsGroupProps {
+  sessions: SessionInfo[];
+  selectedSessionId: string | null;
+  runningSessionIds: Set<string>;
+  unreadSessionIds: Set<string>;
+  relativeTimeNow: number;
+  onSelectSession: (s: SessionInfo) => void;
+  onRenamed: () => void;
+  onSessionDeleted: (id: string) => void;
+}
+
+/** Sessions whose cwd does not match any registered project — surfaced as
+ *  a separate collapsible group with the first MAX_PROJECT_SESSIONS entries
+ *  inline and any older ones tucked under an "Older (N)" sub-collapsible. */
+function OtherSessionsGroup({
+  sessions,
+  selectedSessionId,
+  runningSessionIds,
+  unreadSessionIds,
+  relativeTimeNow,
+  onSelectSession,
+  onRenamed,
+  onSessionDeleted,
+}: OtherSessionsGroupProps) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(true);
+  const [olderExpanded, setOlderExpanded] = useState(false);
+  const tree = useMemo(() => buildSessionTree(sessions), [sessions]);
+  const hiddenCount = Math.max(0, tree.length - MAX_PROJECT_SESSIONS);
+  const visibleRoots = tree.slice(0, MAX_PROJECT_SESSIONS);
+  const olderRoots = hiddenCount > 0 ? tree.slice(MAX_PROJECT_SESSIONS) : [];
+
+  if (sessions.length === 0) return null;
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          width: "100%",
+          padding: "6px 10px",
+          marginTop: 10,
+          background: "none",
+          border: "none",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          textAlign: "left",
+        }}
+      >
+        <ChevronRight size={12} strokeWidth={1.8} style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)" }} aria-hidden="true" />
+        {t("projects.section.otherSessions")}
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        {visibleRoots.map((node) => (
+          <SessionTreeItem
+            key={node.session.id}
+            node={node}
+            selectedSessionId={selectedSessionId}
+            runningSessionIds={runningSessionIds}
+            unreadSessionIds={unreadSessionIds}
+            relativeTimeNow={relativeTimeNow}
+            onSelectSession={onSelectSession}
+            onRenamed={onRenamed}
+            onSessionDeleted={onSessionDeleted}
+            depth={0}
+          />
+        ))}
+        {hiddenCount > 0 && (
+          <Collapsible open={olderExpanded} onOpenChange={setOlderExpanded}>
+            <CollapsibleTrigger
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                width: "100%",
+                margin: "3px 0 0",
+                padding: "7px 8px",
+                background: "none",
+                border: "none",
+                color: "var(--text-dim)",
+                cursor: "pointer",
+                textAlign: "left",
+                fontSize: 11,
+                fontWeight: 600,
+                borderRadius: "var(--radius-control)",
+              }}
+            >
+              <ChevronDown size={11} strokeWidth={1.8} style={{ flexShrink: 0, transform: olderExpanded ? "rotate(180deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)" }} aria-hidden="true" />
+              {t("projects.section.oldSessions", { count: hiddenCount })}
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+              {olderRoots.map((node) => (
+                <SessionTreeItem
+                  key={node.session.id}
+                  node={node}
+                  selectedSessionId={selectedSessionId}
+                  runningSessionIds={runningSessionIds}
+                  unreadSessionIds={unreadSessionIds}
+                  relativeTimeNow={relativeTimeNow}
+                  onSelectSession={onSelectSession}
+                  onRenamed={onRenamed}
+                  onSessionDeleted={onSessionDeleted}
+                  depth={0}
+                />
+              ))}
+            </CollapsiblePanel>
+          </Collapsible>
+        )}
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }
 
+interface ArchivedProjectsSectionProps {
+  projects: ManagedProject[];
+  activity: Map<string, { running: number; unread: number }>;
+  sessionsByProject: Map<string, SessionInfo[]>;
+  selectedProject: string | null;
+  expandedProjectPaths: ReadonlySet<string>;
+  activateProject: (path: string) => void;
+  toggleProjectExpanded: (path: string) => void;
+  handleRemoveProject: (path: string) => Promise<void> | void;
+  removeProjectPath: string | null;
+  selectedSessionId: string | null;
+  runningSessionIds: Set<string>;
+  unreadSessionIds: Set<string>;
+  relativeTimeNow: number;
+  handleSelectSessionFromList: (s: SessionInfo) => void;
+  loadSessions: () => void;
+  handleSessionDeleted: (id: string) => void;
+  activeProjectSwitcher: ReactNode;
+  homeDir: string;
+}
+
+/** Archived projects rendered as a single collapsible section — collapsed by
+ *  default to keep the sidebar scannable. The rows themselves still support
+ *  the worktree switcher and removal; context-menu archive/edit/clone are
+ *  intentionally omitted because the spec keeps this section read-mostly. */
+function ArchivedProjectsSection({
+  projects,
+  activity,
+  sessionsByProject,
+  selectedProject,
+  expandedProjectPaths,
+  activateProject,
+  toggleProjectExpanded,
+  handleRemoveProject,
+  removeProjectPath,
+  selectedSessionId,
+  runningSessionIds,
+  unreadSessionIds,
+  relativeTimeNow,
+  handleSelectSessionFromList,
+  loadSessions,
+  handleSessionDeleted,
+  activeProjectSwitcher,
+  homeDir,
+}: ArchivedProjectsSectionProps) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          width: "100%",
+          padding: "6px 10px",
+          marginTop: 12,
+          background: "none",
+          border: "none",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          textAlign: "left",
+        }}
+      >
+        <ChevronRight size={12} strokeWidth={1.8} style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-warm)" }} aria-hidden="true" />
+        {t("projects.section.archived", { count: projects.length })}
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        {projects.map((project) => (
+          <ProjectRow
+            key={project.path}
+            project={project}
+            isActive={selectedProject === project.path}
+            isExpanded={expandedProjectPaths.has(project.path)}
+            activity={activity.get(project.path)}
+            tree={buildSessionTree(sessionsByProject.get(project.path) ?? [])}
+            selectedSessionId={selectedSessionId}
+            runningSessionIds={runningSessionIds}
+            unreadSessionIds={unreadSessionIds}
+            relativeTimeNow={relativeTimeNow}
+            onActivate={activateProject}
+            onToggleExpand={toggleProjectExpanded}
+            onRemoveProject={handleRemoveProject}
+            removeBusy={removeProjectPath === project.path}
+            onSelectSession={handleSelectSessionFromList}
+            onRenamed={loadSessions}
+            onSessionDeleted={handleSessionDeleted}
+            activeWorktreeSwitcher={activeProjectSwitcher}
+            homeDir={homeDir}
+            onArchive={undefined}
+            onEdit={undefined}
+            onClone={undefined}
+            archiveBusy={false}
+          />
+        ))}
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
 interface ProjectWorktreeSwitcherProps {
   compact?: boolean;
   worktreeState: WorktreeState;

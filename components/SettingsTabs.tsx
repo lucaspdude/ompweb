@@ -1,12 +1,13 @@
- "use client";
- 
- import { Box, Bot, Cable, Puzzle, Settings2 } from "lucide-react";
+"use client";
+
+import { Box, Bot, Cable, LayoutPanelLeft, Puzzle, Settings2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
- 
- export type SettingsTab = "general" | "models" | "skills" | "plugins" | "mcp";
- 
+
+export type SettingsTab = "general" | "models" | "skills" | "plugins" | "mcp" | "sidebar";
+
 const TABS: Array<{ id: SettingsTab; Icon: typeof Settings2; needsWorkspace?: boolean }> = [
   { id: "general", Icon: Settings2 },
+  { id: "sidebar", Icon: LayoutPanelLeft },
   { id: "models", Icon: Box },
   { id: "mcp", Icon: Cable },
   { id: "skills", Icon: Bot, needsWorkspace: true },
