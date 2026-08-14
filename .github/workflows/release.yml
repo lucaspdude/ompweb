@@ -2,27 +2,16 @@ name: release
 
 # Auto-bump + tag + publish release on every push to main.
 #
-# The flow:
-#   1. Maintainer merges a feature PR to main (no version bump needed).
-#   2. The workflow reads package.json@<version>, checks if v<version>
-#      already exists. If yes, exits (nothing to do).
-#   3. If the tag doesn't exist, it auto-bumps the PATCH version
-#      (0.4.6 -> 0.4.7), commits the bump + a CHANGELOG entry to main,
-#      tags, and publishes the release with auto-generated notes.
-#   4. Subsequent PR merges re-trigger the workflow. If they shipped
-#      after the auto-bump, the workflow creates the next release
-#      (0.4.7 -> 0.4.8) and so on. If the PR author already bumped
-#      package.json themselves, the workflow uses that version
-#      instead (no double-bump).
+# Maintainer flow: just merge PRs. Each push to main that doesn't
+# already have a matching v<version> tag triggers a release. The
+# workflow auto-bumps the PATCH digit (0.4.6 -> 0.4.7), commits
+# the bump + a CHANGELOG entry to main, tags, and publishes.
 #
-# Maintainer flow: just merge PRs. Releases happen automatically. The
-# install scripts (scripts/install.{sh,ps1}) consume the source tarball
-# at the tag.
+# If the maintainer already bumped package.json in their PR, the
+# workflow uses that version (no double-bump).
 #
-# Manual override: `workflow_dispatch` accepts a `version` input and
-# an `auto_bump` toggle. If auto_bump is set to "false" and the
-# version is provided, the workflow tags that exact version without
-# bumping.
+# Manual override: `workflow_dispatch` with auto_bump: false skips
+# the bump for ad-hoc tags.
 
 on:
   push:
@@ -64,61 +53,45 @@ jobs:
           set -euo pipefail
           INPUT_VERSION="${{ inputs.version }}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          # If the maintainer passed a version explicitly, use it. Else
-          # use whatever's in package.json (the freshly-bumped value if
-          # they remembered, the previous value otherwise).
           if [ -n "$INPUT_VERSION" ]; then
             VERSION="${INPUT_VERSION#v}"
           else
             VERSION="${PKG_VERSION}"
           fi
-          # If the version already has a tag, auto-bump the patch digit
-          # so a push to main always produces a new release (unless the
+          # If the tag already exists, auto-bump the patch digit so a
+          # push to main always produces a new release (unless the
           # maintainer disabled auto_bump via workflow_dispatch).
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            if [ "${{ inputs.auto_bump }}" = "false" ] && [ -n "$INPUT_VERSION" ]; then
-              echo "::error::v${VERSION} already exists and auto_bump is off. Pick a different version."
-              exit 1
-            fi
             if [ "${{ inputs.auto_bump }}" = "false" ]; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
-              echo "Tag v${VERSION} already exists; auto_bump disabled, nothing to do."
+              echo "Tag v${VERSION} already exists; auto_bump disabled."
               exit 0
             fi
-            # Auto-bump the patch digit. Bump instead of git tag -f so
-            # the bumped version lands on main for the next maintainer.
             IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION}"
-            # Strip pre-release suffix (e.g. 0.4.0-rc1 -> 0.4.0).
             BASE_PATCH="${PATCH%%-*}"
             PATCH=$((10#${BASE_PATCH} + 1))
             NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             echo "Auto-bumping ${VERSION} -> ${NEW_VERSION} (tag v${VERSION} already exists)"
-            # Update package.json + add a CHANGELOG entry in-place.
+            # Update package.json with the bumped version. Use node
+            # for safe JSON edit; strip any pre-release suffix first.
             node -e "
               const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-              pkg.version = '${NEW_VERSION}';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
+              const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              p.version = process.argv[1];
+              fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+            " "${NEW_VERSION}"
+            # Insert a CHANGELOG entry right after the header (between
+            # the intro paragraph and the first ## [X.Y.Z] entry).
             CHANGELOG="CHANGELOG.md"
             if [ -f "${CHANGELOG}" ]; then
               TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              # Insert the new entry right after the header.
-              python3 - <<PYEOF
-              with open("${CHANGELOG}") as f:
-                  text = f.read()
-              header_end = text.find("\n## ")
-              if header_end == -1:
-                  raise SystemExit("no existing entry to anchor against")
-              new_entry = (
-                  "## [\${NEW_VERSION}] - \${TS}\n\n"
-                  "### Changed\n\n"
-                  "- Auto-bumped patch version after PR merge.\n\n"
-              )
-              new_text = text[:header_end] + new_entry + text[header_end:]
-              with open("${CHANGELOG}", "w") as f:
-                  f.write(new_text)
-              PYEOF
+              # Find the first "## [" line and insert before it.
+              INSERT_LINE="$(grep -n '^## \[' "${CHANGELOG}" | head -1 | cut -d: -f1)"
+              if [ -n "${INSERT_LINE}" ]; then
+                NEW_ENTRY="## [${NEW_VERSION}] - ${TS}"$'\n\n'"### Changed"$'\n\n'"- Auto-bumped patch version after PR merge."$'\n\n'
+                # Use sed to insert before the line.
+                sed -i "${INSERT_LINE}i\\${NEW_ENTRY}" "${CHANGELOG}"
+              fi
             fi
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
