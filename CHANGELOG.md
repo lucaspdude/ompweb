@@ -4,6 +4,24 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.7] — 2026-08-14
+
+### Fixed
+
+- **Sweep remaining \`[omp-web]\` log prefixes + user-visible error
+  strings** that survived the binary rename to \`rocinante\`. The
+  startup diagnostics and warmup warning now read
+  \`[Rocinante] starting (agent-dir ...)\` /
+  \`[Rocinante] omp utility warm-up failed\`. Error messages that said
+  \`'omp-web cannot ...'\` or \`'... in omp-web'\` (in the auth/api-key,
+  auth/logout, sessions/context, models-config, omp/mcp-config, and
+  rpc-manager routes) now read \`Rocinante\`. \`bin/omp-web-options.js\`
+  renamed to \`bin/rocinante-options.js\` (require path updated
+  everywhere). \`lib/omp-web-options.test.mjs\` → \`lib/rocinante-options.test.mjs\`.
+  User-Agent on skill update requests: \`Rocinante\`. localStorage keys
+  (\`omp-web:*\`) and internal tempdir prefixes (\`.omp-web-<pid>-...\`)
+  kept for backwards compatibility — they're not user-visible.
+
 ## [0.4.6] — 2026-08-14
 
 ### Fixed
