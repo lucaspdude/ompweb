@@ -9,7 +9,7 @@ export async function register(): Promise<void> {
   try {
     const { getAgentDir } = await import("@/lib/session-reader");
     console.log(
-      `[omp-web] starting (agent-dir ${getAgentDir()})`,
+      `[Rocinante] starting (agent-dir ${getAgentDir()})`,
     );
   } catch {
     // Diagnostics are best-effort.
@@ -27,7 +27,7 @@ export async function register(): Promise<void> {
       await runUtilityCommand({ type: "get_state" });
     } catch (error) {
       console.warn(
-        `[omp-web] omp utility warm-up failed (routes will retry on demand): ${
+        `[Rocinante] omp utility warm-up failed (routes will retry on demand): ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

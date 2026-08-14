@@ -14,7 +14,7 @@ export async function POST(
   return NextResponse.json(
     {
       error:
-        `omp-web cannot disconnect "${provider}": omp exposes no logout command outside its own UI. ` +
+        `Rocinante cannot disconnect "${provider}": omp exposes no logout command outside its own UI. ` +
         "Run `omp` in a terminal and use /logout to remove the credential.",
       code: "logout_unsupported",
     },
