@@ -36,7 +36,33 @@ Verified end-to-end on the harness host: a clean install of v0.4.3
 completes \`next build\` without errors, writes the production
 bundle to \`.next/\`, and links the production launcher.
 
-## [0.4.2] — 2026-08-13
+## [0.4.5] — 2026-08-13
+
+### Added
+
+- **\`scripts/install.sh\` now installs Rocinante as a background
+  service** that auto-starts on boot and auto-restarts on crash:
+  - Linux: writes \`~/.config/systemd/user/rocinante.service\` with
+    \`Type=simple\`, \`Restart=always\`, \`RestartSec=5\`, and an
+    \`EnvironmentFile=-\${SHARE_DIR}/.env\` so the existing secret
+    is loaded. If a systemd user manager is reachable, also
+    \`daemon-reload\` + \`enable\` + \`restart\`.
+  - macOS: writes
+    \`~/Library/LaunchAgents/com.lucaspdude.rocinante.plist\` with
+    \`RunAtLoad=true\` + \`KeepAlive=true\`.
+  - Set \`ROCINANTE_INSTALL_SERVICE=0\` to opt out (e.g. on CI).
+- **\`/usr/local/bin\` symlink.** Default \`~/.local/bin\` is not on
+  PATH for non-interactive login shells, so the install now also
+  links into \`/usr/local/bin\` (always on PATH on Linux + macOS).
+  \`rocinante\` works out-of-the-box after install with no manual
+  \`.bashrc\` edit.
+
+### Changed
+
+- The success banner now reads \${ROCINANTE_PORT} (was hardcoded to
+  the dev port 30178). Production default is 30177.
+
+## [0.4.4] — 2026-08-13
 
 ### Fixed
 
