@@ -119,7 +119,11 @@ async function main() {
     }
   });
 
-  child.on("exit", (code) => process.exit(code ?? 0));
+  child.stderr?.on("data", (chunk) => process.stderr.write(chunk));
+  child.on("exit", (code, signal) => {
+    console.error(`launcher: next exited with code=${code}, signal=${signal ?? "none"}, uptime=${process.uptime().toFixed(1)}s`);
+    process.exit(code ?? 0);
+  });
 }
 
 main().catch((error) => {
