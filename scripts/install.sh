@@ -44,7 +44,12 @@ REPO="lucaspdude/rocinante"
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=19
 OMP_INSTALL_URL="https://omp.sh/install"
-
+# Install the systemd / launchd service so Rocinante auto-starts on
+# boot and auto-restarts on crash. Set ROCINANTE_INSTALL_SERVICE=0 to opt
+# out (e.g. on a transient host or CI). Default-on matches the user's
+# expectation that the server is \"always working\".
+ROCINANTE_INSTALL_SERVICE="${ROCINANTE_INSTALL_SERVICE:-1}"
+ROCINANTE_PORT="${ROCINANTE_PORT:-30177}"
 # ---- Logging ----
 log()  { printf '\033[1;34m[install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*" >&2; }
@@ -186,14 +191,84 @@ ensure_rocinante() {
 }
 
 ensure_launcher_symlink() {
-  if ! command -v rocinante >/dev/null 2>&1; then
-    log "Re-install note: rocinante not on PATH yet. Add '${BIN_DIR}' to your PATH."
-  fi
   mkdir -p "${BIN_DIR}"
   # The launcher is bin/rocinante.js — the symlink target is the canonical
   # 'rocinante' name so it matches the documented command.
   ln -sf "${SHARE_DIR}/bin/rocinante.js" "${BIN_DIR}/rocinante"
   log "Linked ${BIN_DIR}/rocinante -> ${SHARE_DIR}/bin/rocinante.js"
+  # Also link into /usr/local/bin (always on PATH for non-interactive
+  # login shells) so `rocinante` works out-of-the-box without sourcing
+  # rc files. Best-effort: skip silently if the dir is not writable.
+  if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
+    ln -sf "${SHARE_DIR}/bin/rocinante.js" /usr/local/bin/rocinante
+    log "Linked /usr/local/bin/rocinante -> ${SHARE_DIR}/bin/rocinante.js"
+  fi
+}
+
+ensure_systemd_service() {
+  # Set up a user-level systemd service so Rocinante auto-starts on boot
+  # and auto-restarts on crash. `systemctl --user` works for any user
+  # (including root) without needing /etc/systemd permissions.
+  local unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+  local unit_path="${unit_dir}/rocinante.service"
+  mkdir -p "${unit_dir}"
+  cat > "${unit_path}" <<UNIT
+[Unit]
+Description=Rocinante web UI for the omp coding agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${SHARE_DIR}
+ExecStart=${SHARE_DIR}/bin/rocinante.js
+Environment=ROCINANTE_PORT=${ROCINANTE_PORT}
+EnvironmentFile=-${SHARE_DIR}/.env
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
+UNIT
+  if [ -n "${XDG_RUNTIME_DIR:-}" ] && systemctl --user status >/dev/null 2>&1; then
+    systemctl --user daemon-reload
+    systemctl --user enable rocinante.service
+    systemctl --user restart rocinante.service
+    log "systemd user service enabled and started (${unit_path})"
+  else
+    log "Wrote ${unit_path}; enable with: systemctl --user enable --now rocinante.service"
+  fi
+}
+
+ensure_launchd_agent() {
+  # macOS: install a per-user LaunchAgent that keeps the server running
+  # after the user logs in. launchd auto-restarts on crash.
+  local plist_dir="$HOME/Library/LaunchAgents"
+  local plist_path="${plist_dir}/com.lucaspdude.rocinante.plist"
+  mkdir -p "${plist_dir}"
+  cat > "${plist_path}" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.lucaspdude.rocinante</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${SHARE_DIR}/bin/rocinante.js</string>
+  </array>
+  <key>WorkingDirectory</key><string>${SHARE_DIR}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ROCINANTE_PORT</key><string>${ROCINANTE_PORT}</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+</dict>
+</plist>
+PLIST
+  launchctl load -w "${plist_path}" 2>/dev/null || true
+  log "launchd LaunchAgent installed (${plist_path})"
 }
 
 main() {
@@ -201,14 +276,24 @@ main() {
   ensure_node
   ensure_omp
   ensure_rocinante
+  ensure_launcher_symlink
+
+  if [ "${ROCINANTE_INSTALL_SERVICE}" = "1" ]; then
+    case "$(uname -s)" in
+      Linux)  ensure_systemd_service ;;
+      Darwin) ensure_launchd_agent ;;
+      *)      log "Auto-start not supported on $(uname -s); skipping service install." ;;
+    esac
+  fi
 
   cat <<EOF
 
 \033[1;32m✓\033[0m Rocinante installed.
 
-  Run \033[1m'rocinante'\033[0m to start the web UI.
-  The UI opens on http://127.0.0.1:30178 by default.
+  Run \`rocinante\` to start the web UI.
+  The UI opens on http://127.0.0.1:${ROCINANTE_PORT} by default.
   If 'rocinante' is not on PATH, add \033[1m${BIN_DIR}\033[0m to your shell rc.
+  A symlink was also placed in \033[1m/usr/local/bin\033[0m (always on PATH).
 EOF
 
   seed_env_file
