@@ -332,9 +332,9 @@ export class RpcProcess {
         return;
       }
       try {
-        process.kill(-pid, signal);
+        this.child.kill(signal);
       } catch {
-        try { this.child.kill(signal); } catch {}
+        try { process.kill(-pid, signal); } catch {}
       }
     };
     const timer = setTimeout(() => {
