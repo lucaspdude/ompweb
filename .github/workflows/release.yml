@@ -1,23 +1,28 @@
 name: release
 
-# On push to main, read the version from package.json, ensure the
-# matching `vX.Y.Z` tag exists, and publish a GitHub Release. The
-# install scripts (`scripts/install.{sh,ps1}`) consume the
-# auto-generated source tarball at the tag, so this is the single
-# trigger point for shipping a new Rocinante release.
+# Auto-bump + tag + publish release on every push to main.
 #
 # The flow:
-#   1. The maintainer merges to main with a bumped package.json
-#      version (e.g. 0.4.0). This workflow picks it up.
-#   2. The job checks whether the tag `v<version>` already exists.
-#   3. If not, it creates the tag at HEAD and publishes a release
-#      with auto-generated notes.
+#   1. Maintainer merges a feature PR to main (no version bump needed).
+#   2. The workflow reads package.json@<version>, checks if v<version>
+#      already exists. If yes, exits (nothing to do).
+#   3. If the tag doesn't exist, it auto-bumps the PATCH version
+#      (0.4.6 -> 0.4.7), commits the bump + a CHANGELOG entry to main,
+#      tags, and publishes the release with auto-generated notes.
+#   4. Subsequent PR merges re-trigger the workflow. If they shipped
+#      after the auto-bump, the workflow creates the next release
+#      (0.4.7 -> 0.4.8) and so on. If the PR author already bumped
+#      package.json themselves, the workflow uses that version
+#      instead (no double-bump).
 #
-# To ship a release, just bump `package.json` and merge to main. To
-# skip a release for a given push, leave the version alone and the
-# workflow is a no-op (no tag is created).
+# Maintainer flow: just merge PRs. Releases happen automatically. The
+# install scripts (scripts/install.{sh,ps1}) consume the source tarball
+# at the tag.
 #
-# Manual override: `workflow_dispatch` accepts a `version` input.
+# Manual override: `workflow_dispatch` accepts a `version` input and
+# an `auto_bump` toggle. If auto_bump is set to "false" and the
+# version is provided, the workflow tags that exact version without
+# bumping.
 
 on:
   push:
@@ -28,6 +33,14 @@ on:
         description: "Override the release version (defaults to package.json)"
         required: false
         type: string
+      auto_bump:
+        description: "Auto-bump patch version when tag exists. Default: true."
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
 
 permissions:
   contents: write
@@ -50,18 +63,78 @@ jobs:
         run: |
           set -euo pipefail
           INPUT_VERSION="${{ inputs.version }}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          # If the maintainer passed a version explicitly, use it. Else
+          # use whatever's in package.json (the freshly-bumped value if
+          # they remembered, the previous value otherwise).
           if [ -n "$INPUT_VERSION" ]; then
-            echo "version=${INPUT_VERSION#v}" >> "$GITHUB_OUTPUT"
+            VERSION="${INPUT_VERSION#v}"
           else
-            PKG_VERSION="$(node -p "require('./package.json').version")"
-            echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+            VERSION="${PKG_VERSION}"
           fi
-          TAG="v$(cat "$GITHUB_OUTPUT" | grep '^version=' | cut -d= -f2)"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Resolved version=$TAG from $([ -n "$INPUT_VERSION" ] && echo 'workflow_dispatch' || echo 'package.json')"
+          # If the version already has a tag, auto-bump the patch digit
+          # so a push to main always produces a new release (unless the
+          # maintainer disabled auto_bump via workflow_dispatch).
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            if [ "${{ inputs.auto_bump }}" = "false" ] && [ -n "$INPUT_VERSION" ]; then
+              echo "::error::v${VERSION} already exists and auto_bump is off. Pick a different version."
+              exit 1
+            fi
+            if [ "${{ inputs.auto_bump }}" = "false" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "Tag v${VERSION} already exists; auto_bump disabled, nothing to do."
+              exit 0
+            fi
+            # Auto-bump the patch digit. Bump instead of git tag -f so
+            # the bumped version lands on main for the next maintainer.
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION}"
+            # Strip pre-release suffix (e.g. 0.4.0-rc1 -> 0.4.0).
+            BASE_PATCH="${PATCH%%-*}"
+            PATCH=$((10#${BASE_PATCH} + 1))
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            echo "Auto-bumping ${VERSION} -> ${NEW_VERSION} (tag v${VERSION} already exists)"
+            # Update package.json + add a CHANGELOG entry in-place.
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = '${NEW_VERSION}';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            CHANGELOG="CHANGELOG.md"
+            if [ -f "${CHANGELOG}" ]; then
+              TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              # Insert the new entry right after the header.
+              python3 - <<PYEOF
+              with open("${CHANGELOG}") as f:
+                  text = f.read()
+              header_end = text.find("\n## ")
+              if header_end == -1:
+                  raise SystemExit("no existing entry to anchor against")
+              new_entry = (
+                  "## [\${NEW_VERSION}] - \${TS}\n\n"
+                  "### Changed\n\n"
+                  "- Auto-bumped patch version after PR merge.\n\n"
+              )
+              new_text = text[:header_end] + new_entry + text[header_end:]
+              with open("${CHANGELOG}", "w") as f:
+                  f.write(new_text)
+              PYEOF
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add package.json "${CHANGELOG}" 2>/dev/null || git add package.json
+            git commit -m "chore(release): auto-bump to ${NEW_VERSION}"
+            git push origin HEAD:main
+            VERSION="${NEW_VERSION}"
+            echo "::notice::Auto-bumped to ${NEW_VERSION}; CHANGELOG and package.json updated on main."
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=v${VERSION}"
 
       - name: Skip if tag already exists
         id: check
+        if: steps.version.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
