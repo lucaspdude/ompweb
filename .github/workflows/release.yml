@@ -85,14 +85,22 @@ jobs:
             CHANGELOG="CHANGELOG.md"
             if [ -f "${CHANGELOG}" ]; then
               TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              # Find the first "## [" line and insert before it.
+              # Find the first "## [" line and insert the new entry
+              # before it. Use head/tail (NOT sed -i): sed's `i\\`
+              # command treats the first character of the inserted
+              # text as a flag, so a markdown bullet '-' breaks with
+              # 'unknown command: `-`' errors. head+tail has no such
+              # ambiguity.
               INSERT_LINE="$(grep -n '^## \[' "${CHANGELOG}" | head -1 | cut -d: -f1)"
               if [ -n "${INSERT_LINE}" ]; then
                 NEW_ENTRY="## [${NEW_VERSION}] - ${TS}"$'\n\n'"### Changed"$'\n\n'"- Auto-bumped patch version after PR merge."$'\n\n'
-                # Use sed to insert before the line.
-                sed -i "${INSERT_LINE}i\\${NEW_ENTRY}" "${CHANGELOG}"
+                {
+                  head -n $((INSERT_LINE - 1)) "${CHANGELOG}"
+                  printf '%s' "${NEW_ENTRY}"
+                  tail -n +"${INSERT_LINE}" "${CHANGELOG}"
+                } > "${CHANGELOG}.new"
+                mv "${CHANGELOG}.new" "${CHANGELOG}"
               fi
-            fi
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add package.json "${CHANGELOG}" 2>/dev/null || git add package.json
