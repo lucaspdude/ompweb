@@ -4,7 +4,23 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
-## [0.4.4] — 2026-08-13
+## [0.4.6] — 2026-08-14
+
+### Fixed
+
+- **\`systemd\` user service entered a restart loop with exit 127
+  on NVM hosts** because the unit's \`ExecStart\` used the JS path
+  (with a \`#!/usr/bin/env node\` shebang); systemd invokes the
+  service via \`/bin/sh\`, which falls back to \`env node\`, but
+  systemd's minimal service PATH doesn't include
+  \`~/.nvm/versions/node/vX.Y.Z/bin\` so \`env node\` can't find
+  node. Resolve \`node\` at install time (\`command -v node\`) and
+  write the absolute path into \`ExecStart\`. Also set
+  \`Environment=PATH=\${PATH}\` in the unit + the \`PATH\` env in
+  the launchd plist so the launcher's subprocesses (\`omp\`, \`az\`,
+  etc.) inherit a usable PATH.
+
+## [0.4.5] — 2026-08-13
 
 ### Fixed
 
