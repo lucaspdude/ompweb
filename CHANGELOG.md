@@ -4,6 +4,12 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.8] - 2026-08-14T23:02:17Z
+
+### Changed
+
+- Auto-bumped patch version after PR merge.
+
 ## [0.4.7] - 2026-08-14T22:43:58Z
 
 ### Changed
