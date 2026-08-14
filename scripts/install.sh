@@ -230,11 +230,17 @@ WorkingDirectory=${SHARE_DIR}
 ExecStart=${node_bin} ${SHARE_DIR}/bin/rocinante.js
 Environment=PATH=${PATH}
 Environment=ROCINANTE_PORT=${ROCINANTE_PORT}
+# Default to 0.0.0.0 so the service is reachable from the LAN and from
+# tunnel daemons (newt). The launcher reads ROCINANTE_HOSTNAME from
+# the env and passes -H <hostname> to \`next start\`. The package.json
+# \`start\` script hard-codes -H 127.0.0.1, so the env var is the
+# only way to expose the service. Set ROCINANTE_HOSTNAME=127.0.0.1
+# in the env file if running on a single-user box.
+Environment=ROCINANTE_HOSTNAME=${ROCINANTE_HOSTNAME:-0.0.0.0}
 EnvironmentFile=-${SHARE_DIR}/.env
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
-
 [Install]
 WantedBy=default.target
 UNIT
