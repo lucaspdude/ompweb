@@ -212,6 +212,12 @@ ensure_systemd_service() {
   local unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
   local unit_path="${unit_dir}/rocinante.service"
   mkdir -p "${unit_dir}"
+  # Resolve `node` at install time — NVM installs put node outside the
+  # default PATH that systemd services see, so `env node` from the
+  # unit would fail. Embed the absolute path in the unit + propagate
+  # PATH so any subprocess (e.g. omp-sh) can find its toolchain.
+  local node_bin
+  node_bin="$(command -v node 2>/dev/null || echo /usr/bin/node)"
   cat > "${unit_path}" <<UNIT
 [Unit]
 Description=Rocinante web UI for the omp coding agent
@@ -221,7 +227,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=${SHARE_DIR}
-ExecStart=${SHARE_DIR}/bin/rocinante.js
+ExecStart=${node_bin} ${SHARE_DIR}/bin/rocinante.js
+Environment=PATH=${PATH}
 Environment=ROCINANTE_PORT=${ROCINANTE_PORT}
 EnvironmentFile=-${SHARE_DIR}/.env
 Restart=always
@@ -261,6 +268,7 @@ ensure_launchd_agent() {
   <key>EnvironmentVariables</key>
   <dict>
     <key>ROCINANTE_PORT</key><string>${ROCINANTE_PORT}</string>
+    <key>PATH</key><string>${PATH}</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
