@@ -4,6 +4,48 @@ All notable changes to Rocinante are documented here. Versions follow
 [SemVer](https://semver.org/). The upstream `omp` (oh-my-pi) binary is
 a separate product; release notes for it live at
 <https://github.com/can1357/oh-my-pi/releases>.
+## [0.4.6] — 2026-08-14
+
+### Fixed
+
+- **\`systemd\` user service entered a restart loop with exit 127
+  on NVM hosts** because the unit's \`ExecStart\` used the JS path
+  (with a \`#!/usr/bin/env node\` shebang); systemd invokes the
+  service via \`/bin/sh\`, which falls back to \`env node\`, but
+  systemd's minimal service PATH doesn't include
+  \`~/.nvm/versions/node/vX.Y.Z/bin\` so \`env node\` can't find
+  node. Resolve \`node\` at install time (\`command -v node\`) and
+  write the absolute path into \`ExecStart\`. Also set
+  \`Environment=PATH=\${PATH}\` in the unit + the \`PATH\` env in
+  the launchd plist so the launcher's subprocesses (\`omp\`, \`az\`,
+  etc.) inherit a usable PATH.
+
+## [0.4.5] — 2026-08-13
+
+### Added
+
+- **\`scripts/install.sh\` now installs Rocinante as a background
+  service** that auto-starts on boot and auto-restarts on crash:
+  - Linux: writes \`~/.config/systemd/user/rocinante.service\` with
+    \`Type=simple\`, \`Restart=always\`, \`RestartSec=5\`, and an
+    \`EnvironmentFile=-\${SHARE_DIR}/.env\` so the existing secret
+    is loaded. If a systemd user manager is reachable, also
+    \`daemon-reload\` + \`enable\` + \`restart\`.
+  - macOS: writes
+    \`~/Library/LaunchAgents/com.lucaspdude.rocinante.plist\` with
+    \`RunAtLoad=true\` + \`KeepAlive=true\`.
+  - Set \`ROCINANTE_INSTALL_SERVICE=0\` to opt out (e.g. on CI).
+- **\`/usr/local/bin\` symlink.** Default \`~/.local/bin\` is not on
+  PATH for non-interactive login shells, so the install now also
+  links into \`/usr/local/bin\` (always on PATH on Linux + macOS).
+  \`rocinante\` works out-of-the-box after install with no manual
+  \`.bashrc\` edit.
+
+### Changed
+
+- The success banner now reads \${ROCINANTE_PORT} (was hardcoded to
+  the dev port 30178). Production default is 30177.
+
 ## [0.4.4] — 2026-08-13
 
 ### Fixed
