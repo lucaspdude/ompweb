@@ -108,7 +108,7 @@ jobs:
       - name: Skip if tag already exists
         id: check
         if: steps.version.outputs.skip != 'true'
-        shell: bash
+                "- * Auto-bumped patch version after PR merge."$'\n\n'
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
