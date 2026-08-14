@@ -78,11 +78,29 @@ nextArgs.push("-H", hostname);
 const url = `http://${hostname}:${port}`;
 
 async function main() {
-  if (!await isPortAvailable(port, hostname)) {
-    console.error(`Port ${port} on ${hostname} is already in use.`);
-    console.error(`If Rocinante is already running, open ${url}. Otherwise, stop the process using it or run: rocinante --port ${Number(port) + 1}`);
-    process.exitCode = 1;
-    return;
+  if (!(await isPortAvailable(port, hostname))) {
+    // Some previous incarnation crashed and left the next-server holding
+    // the port (or the user double-launched). Try to kill the occupant
+    // SIGKILL and re-check; if still busy, give up like before.
+    // Addresses the restart-loop where the launcher kept seeing the
+    // port "in use" and died with status 1, while the orphan next-server
+    // stayed alive. fuser runs sudo-lessly as root in the harness LXC.
+    console.error(`Port ${port} on ${hostname} is in use; trying to free it.`);
+    try {
+      const { execFileSync } = require("node:child_process");
+      const fuserOut = execFileSync("fuser", [`-k`, `-TERM`, `${port}/tcp`], { stdio: ["ignore", "pipe", "ignore"] }).toString();
+      console.error(`fuser killed: ${fuserOut.trim()}`);
+    } catch (fuserError) {
+      console.error(`fuser failed: ${fuserError.message}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!(await isPortAvailable(port, hostname))) {
+      console.error(`Port ${port} on ${hostname} is still in use.`);
+      console.error(`If Rocinante is already running, open ${url}. Otherwise, stop the process using it or run: rocinante --port ${Number(port) + 1}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.error(`Port ${port} freed; starting.`);
   }
 
   const child = spawn(process.execPath, [nextBin, ...nextArgs], {
