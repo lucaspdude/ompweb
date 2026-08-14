@@ -449,7 +449,7 @@ export class AgentSessionWrapper {
       result: {
         content: [{
           type: "text",
-          text: `Host tool \"${toolName}\" is not available in omp-web. Use OMP's built-in tools within the selected workspace.`,
+          text: `Host tool \"${toolName}\" is not available in Rocinante. Use OMP's built-in tools within the selected workspace.`,
         }],
       },
     });
