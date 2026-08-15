@@ -1104,7 +1104,7 @@
   "onboarding.providers.apiKeyCancel": "Cancel",
   "onboarding.providers.apiKeySaved": "API key saved",
   "onboarding.providers.apiKeyFailed": "Failed to save key: {error}",
-  "onboarding.providers.noProviders": "No providers available. Install omp first.",
+  "onboarding.providers.noProviders": "No providers yet. Set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, …) or add one below.",
   "onboarding.model.available": "Available models",
   "onboarding.model.noneAvailable": "No models available — connect a provider first.",
   "onboarding.model.selectDefault": "Default",
