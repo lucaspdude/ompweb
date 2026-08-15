@@ -1105,6 +1105,7 @@
   "onboarding.providers.apiKeySaved": "API key saved",
   "onboarding.providers.apiKeyFailed": "Failed to save key: {error}",
   "onboarding.providers.noProviders": "No providers yet. Set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, …) or add one below.",
+  "onboarding.providers.keySetOutsideUi": "Rocinante can't save a key for {name} from the web UI. Set it in a terminal via `omp /login`, export the env var (e.g. ANTHROPIC_API_KEY), or edit ~/.omp/agent/models.yml.",
   "onboarding.model.available": "Available models",
   "onboarding.model.noneAvailable": "No models available — connect a provider first.",
   "onboarding.model.selectDefault": "Default",

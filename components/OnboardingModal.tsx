@@ -195,37 +195,39 @@ export function OnboardingModal({ wizardMode, open, onOpenChange, onFinished }: 
               gap: 8,
             }}
           >
-            {step > 0 && step < 4 ? (
-              <Button variant="secondary" onClick={back}>
-                {t("onboarding.common.back")}
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={wizardMode ? handleSkipAll : () => setSkipConfirmOpen(true)}
-              >
-                {step === 0 ? t("onboarding.welcome.skip") : t("onboarding.common.skip")}
-              </Button>
-            )}
-            {step === 0 && (
-              <Button variant="primary" onClick={advance}>
-                {t("onboarding.welcome.start")}
-              </Button>
-            )}
-            {step === 1 && (
-              <Button variant="primary" onClick={advance}>
-                {t("onboarding.common.next")}
-              </Button>
-            )}
-            {step === 2 && (
-              <Button variant="primary" onClick={advance}>
-                {t("onboarding.common.next")}
-              </Button>
-            )}
-            {step === 4 && (
-              <Button variant="primary" onClick={handleFinish}>
-                {t("onboarding.done.finish")}
-              </Button>
+            {/* Steps 1 (Security) and 4 (Done) render their own nav inside
+                the content — hide the modal footer there to avoid showing
+                two "advance" buttons in the same step. */}
+            {step !== 1 && step !== 4 && (
+              <>
+                {step > 0 ? (
+                  <Button variant="secondary" onClick={back}>
+                    {t("onboarding.common.back")}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={wizardMode ? handleSkipAll : () => setSkipConfirmOpen(true)}
+                  >
+                    {t("onboarding.welcome.skip")}
+                  </Button>
+                )}
+                {step === 0 && (
+                  <Button variant="primary" onClick={advance}>
+                    {t("onboarding.welcome.start")}
+                  </Button>
+                )}
+                {step === 2 && (
+                  <Button variant="primary" onClick={advance}>
+                    {t("onboarding.common.next")}
+                  </Button>
+                )}
+                {step === 3 && (
+                  <Button variant="primary" onClick={advance}>
+                    {t("onboarding.common.next")}
+                  </Button>
+                )}
+              </>
             )}
           </footer>
         </DialogContent>

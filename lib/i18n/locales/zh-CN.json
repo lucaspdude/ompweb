@@ -1105,6 +1105,7 @@
   "onboarding.providers.apiKeySaved": "API key saved",
   "onboarding.providers.apiKeyFailed": "Failed to save key: {error}",
   "onboarding.providers.noProviders": "尚未配置提供商。请设置 API 密钥 (ANTHROPIC_API_KEY, OPENAI_API_KEY, …) 或在下方添加。",
+  "onboarding.providers.keySetOutsideUi": "Rocinante 无法通过界面保存 {name} 的密钥。请在终端运行 `omp /login`、导出环境变量（例如 ANTHROPIC_API_KEY），或编辑 ~/.omp/agent/models.yml。",
   "onboarding.model.available": "Available models",
   "onboarding.model.noneAvailable": "No models available — connect a provider first.",
   "onboarding.model.selectDefault": "Default",

@@ -27,7 +27,10 @@ function isLocalProvider(id: string): boolean {
 }
 
 function isOAuthProvider(p: OnboardingProvider): boolean {
-  return p.auth === "callback";
+  // paste-key providers (minimax, zai, kimi-code, …) also go through the
+  // browser-driven login popup — omp drives them with extension_ui_request
+  // frames and the user pastes a code back, no API-key input modal needed.
+  return p.auth === "callback" || p.auth === "paste-key";
 }
 
 export function OnboardingProvidersStep({ status, onRefresh }: Props) {
@@ -95,16 +98,15 @@ export function OnboardingProvidersStep({ status, onRefresh }: Props) {
           void onRefresh();
         }
       }, 500);
-    } else if (isLocalProvider(provider.id)) {
-      // Local providers need a base URL (Ollama, LM Studio, vLLM).
-      setPendingInput({ provider, field: "baseUrl" });
-      setInputValue("http://127.0.0.1:11434/v1");
-      setInputError(null);
     } else {
-      // API-key providers: collect the key in a sub-modal.
-      setPendingInput({ provider, field: "apiKey" });
-      setInputValue("");
-      setInputError(null);
+      // "none" auth providers (raw API key in env or models.yml) AND
+      // local providers (Ollama, LM Studio, vLLM) — neither can be
+      // configured from the web UI because /api/auth/api-key/{provider}
+      // rejects writes by design (omp owns the credential store). The
+      // old modal opened an input field and 405'd on save; surface a
+      // toast pointing at the real paths (env var, models.yml, /login
+      // in terminal) instead.
+      toast.error(t("onboarding.providers.keySetOutsideUi", { name: provider.name }));
     }
   }, [t, onRefresh]);
 
