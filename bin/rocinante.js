@@ -156,9 +156,22 @@ async function main() {
     console.error(`launcher: next exited with code=${code}, signal=${signal ?? "none"}, uptime=${process.uptime().toFixed(1)}s`);
     process.exit(code ?? 0);
   });
-}
-
-main().catch((error) => {
-  console.error(`Could not check whether ${url} is available: ${error.message}`);
-  process.exit(1);
-});
+  // Ensure SIGTERM is acted on immediately when systemd sends it. Without
+  // this handler, the default Node.js action runs but the launcher can
+  // get stuck in the middle of a long synchronous operation (e.g. a
+  // blocked stdout write from a misbehaving child) and miss the
+  // TimeoutStopSec=20s, ending up SIGKILLed by systemd and triggering
+  // a noisy restart loop. The handler forces an immediate clean exit.
+  process.on("SIGTERM", () => {
+    console.error(`launcher: received SIGTERM, exiting`);
+    process.exit(0);
+  });
+  process.on("SIGINT", () => {
+    console.error(`launcher: received SIGINT, exiting`);
+    process.exit(0);
+  });
+  process.on("SIGHUP", () => {
+    console.error(`launcher: received SIGHUP, exiting`);
+    process.exit(0);
+  });
+ }
