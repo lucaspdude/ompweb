@@ -86,12 +86,26 @@ async function main() {
     // port "in use" and died with status 1, while the orphan next-server
     // stayed alive. fuser runs sudo-lessly as root in the harness LXC.
     console.error(`Port ${port} on ${hostname} is in use; trying to free it.`);
-    try {
-      const { execFileSync } = require("node:child_process");
-      const fuserOut = execFileSync("fuser", [`-k`, `-TERM`, `${port}/tcp`], { stdio: ["ignore", "pipe", "ignore"] }).toString();
-      console.error(`fuser killed: ${fuserOut.trim()}`);
-    } catch (fuserError) {
-      console.error(`fuser failed: ${fuserError.message}`);
+    // Some previous incarnation crashed and left the next-server holding
+    // the port (or the user double-launched). Try to free the port with
+    // a couple of fallbacks: pkill (always available on Linux), then
+    // fuser (Debian/Ubuntu utility, optional), then ss. Addresses the
+    // restart-loop where the launcher kept seeing the port "in use" and
+    // died with status 1, while the orphan next-server stayed alive.
+    console.error(`Port ${port} on ${hostname} is in use; trying to free it.`);
+    const { execFileSync } = require("node:child_process");
+    const candidates = [
+      ["pkill", ["-TERM", "-f", `next-server.*${port}`]],
+      ["fuser", ["-k", "-TERM", `${port}/tcp`]],
+    ];
+    for (const [cmd, args] of candidates) {
+      try {
+        execFileSync(cmd, args, { stdio: "ignore" });
+        console.error(`Tried ${cmd} ${args.join(" ")}.`);
+        break;
+      } catch (catcherError) {
+        console.error(`${cmd} not available or failed: ${catcherError.message}`);
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 1500));
     if (!(await isPortAvailable(port, hostname))) {
