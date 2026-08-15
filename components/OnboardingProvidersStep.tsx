@@ -72,11 +72,11 @@ export function OnboardingProvidersStep({ status, onRefresh }: Props) {
   }, [onRefresh]);
 
   const handleConnect = useCallback((provider: OnboardingProvider) => {
-    setBusy(provider.id);
     if (isOAuthProvider(provider)) {
       // Real OAuth round-trip via the existing /api/auth/login/{provider}
       // route. Opens in a popup so the main window stays interactive;
       // when the popup closes we re-detect.
+      setBusy(provider.id);
       const popup = window.open(
         `/api/auth/login/${provider.id}`,
         `omp-auth-${provider.id}`,
