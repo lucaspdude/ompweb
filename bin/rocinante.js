@@ -174,4 +174,9 @@ async function main() {
     console.error(`launcher: received SIGHUP, exiting`);
     process.exit(0);
   });
- }
+}
+
+main().catch((error) => {
+  console.error(`Could not check whether ${url} is available: ${error.message}`);
+  process.exit(1);
+});
