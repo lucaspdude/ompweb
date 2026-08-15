@@ -294,7 +294,17 @@ main() {
 
   if [ "${ROCINANTE_INSTALL_SERVICE}" = "1" ]; then
     case "$(uname -s)" in
-      Linux)  ensure_systemd_service ;;
+      Linux)
+        # Enable linger on the user manager so the service survives the
+        # user logging out (otherwise the user manager reaps the
+        # service when the SSH session ends, killing the orphan
+        # next-server and triggering the restart cascade).
+        if command -v loginctl >/dev/null 2>&1; then
+          loginctl enable-linger "${SUDO_USER:-${USER}}" 2>/dev/null || true
+          log "Enabled linger for user ${SUDO_USER:-${USER}}"
+        fi
+        ensure_systemd_service
+        ;;
       Darwin) ensure_launchd_agent ;;
       *)      log "Auto-start not supported on $(uname -s); skipping service install." ;;
     esac
