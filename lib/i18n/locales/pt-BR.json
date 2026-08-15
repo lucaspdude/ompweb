@@ -1105,6 +1105,7 @@
   "onboarding.providers.apiKeySaved": "Chave de API salva",
   "onboarding.providers.apiKeyFailed": "Falha ao salvar chave: {error}",
   "onboarding.providers.noProviders": "Nenhum provider ainda. Defina uma API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, …) ou adicione um abaixo.",
+  "onboarding.providers.keySetOutsideUi": "Rocinante não consegue salvar a chave de {name} pela interface. Defina em um terminal com `omp /login`, exporte a variável (ex.: ANTHROPIC_API_KEY) ou edite ~/.omp/agent/models.yml.",
   "onboarding.model.available": "Modelos disponíveis",
   "onboarding.model.noneAvailable": "Nenhum modelo disponível — conecte um provider primeiro.",
   "onboarding.model.selectDefault": "Padrão",
